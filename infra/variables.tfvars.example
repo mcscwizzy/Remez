@@ -1,0 +1,7 @@
+environment       = "dev"
+location          = "eastus"
+image             = "ghcr.io/<owner>/remez-api:initial"
+ghcr_username     = "your-username"
+ghcr_pat          = "REPLACE_ME"
+azure_ai_endpoint = "https://your-foundry.services.ai.azure.com"
+azure_ai_api_key  = "REPLACE_ME"
