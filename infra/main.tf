@@ -42,14 +42,14 @@ resource "azurerm_container_app" "api" {
   }
 
   secret {
-    name  = "ghcr-pat"
-    value = var.ghcr_pat
+    name  = "registry-password"
+    value = var.registry_password
   }
 
   registry {
-    server               = "ghcr.io"
-    username             = var.ghcr_username
-    password_secret_name = "ghcr-pat"
+    server               = var.registry_server
+    username             = var.registry_username
+    password_secret_name = "registry-password"
   }
 
   template {

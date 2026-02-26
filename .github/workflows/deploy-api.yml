@@ -1,0 +1,162 @@
+name: Build and Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "infra/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_DIR: api
+  TF_DIR: infra
+  IMAGE_NAME: remez-api
+  DEPLOY_ENVIRONMENT: dev
+  AZURE_LOCATION: eastus
+  REGISTRY_HOST: ghcr.io
+
+jobs:
+  build_push_ghcr:
+    name: Build and Push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image URI
+        id: meta
+        env:
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
+          REGISTRY_NAMESPACE: ${{ vars.GHCR_NAMESPACE || github.repository_owner }}
+          IMAGE_NAME: ${{ vars.IMAGE_NAME || env.IMAGE_NAME }}
+        run: |
+          NS_LC="$(echo "${REGISTRY_NAMESPACE}" | tr '[:upper:]' '[:lower:]')"
+          IMAGE_URI="${REGISTRY_HOST}/${NS_LC}/${IMAGE_NAME}:${GITHUB_SHA}"
+          echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image_uri }}
+
+  terraform_apply:
+    name: Terraform Apply (Azure)
+    runs-on: ubuntu-latest
+    needs: build_push_ghcr
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      container_app_name: ${{ steps.tfout.outputs.container_app_name }}
+      resource_group_name: ${{ steps.tfout.outputs.resource_group_name }}
+      container_app_fqdn: ${{ steps.tfout.outputs.container_app_fqdn }}
+    env:
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config="resource_group_name=${{ vars.TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.TFSTATE_CONTAINER }}" \
+            -backend-config="key=${{ vars.TFSTATE_KEY }}"
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_IN_AUTOMATION: "true"
+          IMAGE_URI: ${{ needs.build_push_ghcr.outputs.image_uri }}
+          TF_VAR_environment: ${{ vars.DEPLOY_ENVIRONMENT || env.DEPLOY_ENVIRONMENT }}
+          TF_VAR_location: ${{ vars.AZURE_LOCATION || env.AZURE_LOCATION }}
+          TF_VAR_image: ${{ needs.build_push_ghcr.outputs.image_uri }}
+          TF_VAR_registry_server: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
+          TF_VAR_registry_username: ${{ secrets.GHCR_USERNAME }}
+          TF_VAR_registry_password: ${{ secrets.GHCR_PAT }}
+          TF_VAR_azure_ai_endpoint: ${{ secrets.AZURE_AI_ENDPOINT }}
+          TF_VAR_azure_ai_api_key: ${{ secrets.AZURE_AI_API_KEY }}
+        run: |
+          terraform apply -auto-approve -input=false
+
+      - name: Capture Terraform outputs
+        id: tfout
+        working-directory: ${{ env.TF_DIR }}
+        shell: bash
+        run: |
+          echo "container_app_name=$(terraform output -raw container_app_name)" >> "$GITHUB_OUTPUT"
+          echo "resource_group_name=$(terraform output -raw resource_group_name)" >> "$GITHUB_OUTPUT"
+          echo "container_app_fqdn=$(terraform output -raw container_app_fqdn)" >> "$GITHUB_OUTPUT"
+
+  deploy_container_app_image:
+    name: Deploy Image to Azure Container App
+    runs-on: ubuntu-latest
+    needs: [build_push_ghcr, terraform_apply]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Container Apps extension
+        run: |
+          az extension add --name containerapp --upgrade
+
+      - name: Update Container App image
+        run: |
+          az containerapp update \
+            --name "${{ needs.terraform_apply.outputs.container_app_name }}" \
+            --resource-group "${{ needs.terraform_apply.outputs.resource_group_name }}" \
+            --image "${{ needs.build_push_ghcr.outputs.image_uri }}"
+
+      - name: Show URL
+        run: |
+          echo "https://${{ needs.terraform_apply.outputs.container_app_fqdn }}"

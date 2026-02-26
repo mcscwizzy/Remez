@@ -9,7 +9,7 @@ variable "location" {
 }
 
 variable "image" {
-  description = "Full GHCR image reference (tagged), e.g. ghcr.io/owner/remez-api:sha"
+  description = "Full container image reference (tagged), e.g. ghcr.io/owner/remez-api:sha"
   type        = string
 }
 
@@ -18,12 +18,17 @@ variable "container_port" {
   default = 8000
 }
 
-variable "ghcr_username" {
+variable "registry_server" {
+  description = "Container registry server, e.g. ghcr.io or <name>.azurecr.io"
+  type        = string
+}
+
+variable "registry_username" {
   type      = string
   sensitive = true
 }
 
-variable "ghcr_pat" {
+variable "registry_password" {
   type      = string
   sensitive = true
 }
