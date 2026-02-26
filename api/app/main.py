@@ -13,7 +13,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/analyze", response_model=AnalysisResponse)
+@app.post("/analyze", response_model=AnalysisResponse) 
 async def analyze(req: AnalyzeRequest):
 
     def too_empty(p: dict) -> bool:
