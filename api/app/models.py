@@ -34,15 +34,22 @@ class StructureLine(BaseModel):
     text: str
 
 
+class StructureFrame(BaseModel):
+    left_id: str
+    right_id: str
+    evidence: List[str] = Field(default_factory=list)
+
+
 class ChiasmPivot(BaseModel):
     line_id: str
     why: str
 
 
 class ChiasmPair(BaseModel):
-    label: str  # "A", "B", "C", etc.
-    left: str   # line_id
-    right: str  # line_id
+    label: str  # "A/A'", "B/B'", etc.
+    left_ids: List[str] = Field(default_factory=list)
+    right_ids: List[str] = Field(default_factory=list)
+    anchor_type: Literal["lexical", "formula", "keyword", "inversion", "thematic"]
     evidence: List[str] = Field(default_factory=list)
 
 
@@ -57,7 +64,7 @@ class ScoreBreakdown(BaseModel):
 
 class ChiasmCandidate(BaseModel):
     id: str
-    pattern: str  # e.g. "A B C X C' B' A'"
+    pattern: str
     pivot: ChiasmPivot
     pairs: List[ChiasmPair] = Field(default_factory=list)
     score_breakdown: ScoreBreakdown
@@ -76,13 +83,12 @@ class StructureResult(BaseModel):
     detected: Literal["chiasm", "parallelism", "none"]
     confidence: Literal["high", "medium", "low"]
 
-    # Always required: segmentation should always be present
     lines: List[StructureLine] = Field(default_factory=list)
 
-    # 0–2 candidates max (prompt governs this; model just supports it)
+    frame: Optional[StructureFrame] = None
+
     chiasm_candidates: List[ChiasmCandidate] = Field(default_factory=list)
 
-    # Must be null unless detected == "chiasm"
     best_chiasm: Optional[BestChiasm] = None
 
     cautions: List[str] = Field(default_factory=list)
@@ -93,28 +99,21 @@ class StructureResult(BaseModel):
 class AnalysisResponse(BaseModel):
     reference: Optional[str] = None
 
-    # NEW: structure block added
     structure: StructureResult
 
-    # Core outputs
     peshat_summary: str
     keywords: List[str] = Field(default_factory=list)
     themes: List[str] = Field(default_factory=list)
 
-    # Heiser / cultural worldview sections
     cultural_worldview_notes: List[str] = Field(default_factory=list)
     motifs_and_patterns: List[str] = Field(default_factory=list)
     second_temple_bridge: List[str] = Field(default_factory=list)
 
-    # Text details (kept lightweight)
     key_terms: List[KeyTerm] = Field(default_factory=list)
 
-    # Cross-textual links
     nt_parallels: List[NTParallel] = Field(default_factory=list)
 
-    # Trust / humility
     confidence: Literal["high", "medium", "low"]
     notable_alternatives: List[str] = Field(default_factory=list)
 
-    # Optional “so what” (but prompt wants at least 1, so not Optional anymore)
     application: List[str] = Field(default_factory=list)
