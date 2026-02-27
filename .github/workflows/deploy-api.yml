@@ -48,7 +48,7 @@ jobs:
           context: ./api
           file: ./api/Dockerfile
           push: true
-          tags: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, toLower(vars.GHCR_NAMESPACE || github.repository_owner), vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
+          tags: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
 
   terraform_apply:
     name: Terraform Apply (Azure)
@@ -96,12 +96,12 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         env:
           TF_IN_AUTOMATION: "true"
-          IMAGE_REPOSITORY: ${{ format('{0}/{1}/{2}', vars.REGISTRY_HOST || env.REGISTRY_HOST, toLower(vars.GHCR_NAMESPACE || github.repository_owner), vars.IMAGE_NAME || env.IMAGE_NAME) }}
+          IMAGE_REPOSITORY: ${{ format('{0}/{1}/{2}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME) }}
           IMAGE_TAG: ${{ github.sha }}
-          IMAGE_URI: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, toLower(vars.GHCR_NAMESPACE || github.repository_owner), vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
+          IMAGE_URI: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
           TF_VAR_environment: ${{ vars.DEPLOY_ENVIRONMENT || env.DEPLOY_ENVIRONMENT }}
           TF_VAR_location: ${{ vars.AZURE_LOCATION || env.AZURE_LOCATION }}
-          TF_VAR_image: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, toLower(vars.GHCR_NAMESPACE || github.repository_owner), vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
+          TF_VAR_image: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
           TF_VAR_registry_server: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
           TF_VAR_registry_username: ${{ secrets.GHCR_USERNAME }}
           TF_VAR_registry_password: ${{ secrets.GHCR_PAT }}
@@ -144,9 +144,9 @@ jobs:
 
       - name: Update Container App image
         env:
-          IMAGE_REPOSITORY: ${{ format('{0}/{1}/{2}', vars.REGISTRY_HOST || env.REGISTRY_HOST, toLower(vars.GHCR_NAMESPACE || github.repository_owner), vars.IMAGE_NAME || env.IMAGE_NAME) }}
+          IMAGE_REPOSITORY: ${{ format('{0}/{1}/{2}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME) }}
           IMAGE_TAG: ${{ github.sha }}
-          IMAGE_URI: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, toLower(vars.GHCR_NAMESPACE || github.repository_owner), vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
+          IMAGE_URI: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
         run: |
           az containerapp update \
             --name "${{ needs.terraform_apply.outputs.container_app_name }}" \
