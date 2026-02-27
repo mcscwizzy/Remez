@@ -32,19 +32,19 @@ def _split_line_range(s: str) -> List[str]:
     Converts "L3-L4" into ["L3","L4"] (inclusive) when possible.
     If parsing fails, returns [s].
     """
-    s = s.strip()
+    s = (s or "").strip()
     if "-" not in s:
-        return [s]
+        return [s] if s else []
 
     left, right = [x.strip() for x in s.split("-", 1)]
     if not (left.startswith("L") and right.startswith("L")):
-        return [s]
+        return [s] if s else []
 
     try:
         a = int(left[1:])
         b = int(right[1:])
     except ValueError:
-        return [s]
+        return [s] if s else []
 
     if a <= b:
         return [f"L{i}" for i in range(a, b + 1)]
@@ -115,22 +115,27 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
 
     valid_ids = {ln["id"] for ln in normalized_lines if ln.get("id")}
 
-    # frame
+    # frame: validate ids against valid_ids, else null it
     frame = s.get("frame")
     if isinstance(frame, dict):
-        f = {
-            "left_id": str(frame.get("left_id", "")),
-            "right_id": str(frame.get("right_id", "")),
-            "evidence": [str(x) for x in _ensure_list(frame.get("evidence"))],
-        }
-        s["frame"] = f if f["left_id"] and f["right_id"] else None
+        left_id = str(frame.get("left_id", ""))
+        right_id = str(frame.get("right_id", ""))
+        evidence = [str(x) for x in _ensure_list(frame.get("evidence"))]
+        if left_id and right_id and (not valid_ids or (left_id in valid_ids and right_id in valid_ids)):
+            s["frame"] = {"left_id": left_id, "right_id": right_id, "evidence": evidence}
+        else:
+            s["frame"] = None
+            # only add a caution if it tried to set a frame
+            if left_id or right_id:
+                s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
+                s["cautions"].append("Normalizer dropped structure.frame because frame ids were invalid for structure.lines.")
     else:
         s["frame"] = None
 
-    # cautions
+    # cautions always list
     s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
 
-    # parallels (always create the key)
+    # parallels: always create the key and normalize
     parallels = _ensure_list(s.get("parallels"))
     normalized_parallels = []
     for g in parallels:
@@ -156,7 +161,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
         )
     s["parallels"] = normalized_parallels
 
-    # candidates
+    # chiasm_candidates
     candidates = _ensure_list(s.get("chiasm_candidates"))
     normalized_candidates = []
     for c in candidates:
