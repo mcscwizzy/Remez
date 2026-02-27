@@ -1,6 +1,8 @@
+# api/app/services/normalizer.py
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 def _ensure_list(value: Any) -> List[Any]:
@@ -104,9 +106,10 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
     normalized_lines = []
     for item in lines:
         if isinstance(item, dict):
-            normalized_lines.append({"id": str(item.get("id", "")), "text": str(item.get("text", ""))})
+            normalized_lines.append(
+                {"id": str(item.get("id", "")), "text": str(item.get("text", ""))}
+            )
         else:
-            # fallback: treat as text with generated-ish id placeholder
             normalized_lines.append({"id": "", "text": str(item)})
     s["lines"] = normalized_lines
 
@@ -115,18 +118,43 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
     # frame
     frame = s.get("frame")
     if isinstance(frame, dict):
-        s["frame"] = {
+        f = {
             "left_id": str(frame.get("left_id", "")),
             "right_id": str(frame.get("right_id", "")),
             "evidence": [str(x) for x in _ensure_list(frame.get("evidence"))],
         }
-        if not s["frame"]["left_id"] or not s["frame"]["right_id"]:
-            s["frame"] = None
+        s["frame"] = f if f["left_id"] and f["right_id"] else None
     else:
         s["frame"] = None
 
     # cautions
     s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
+
+    # parallels
+    parallels = _ensure_list(s.get("parallels"))
+    normalized_parallels = []
+    for g in parallels:
+        if not isinstance(g, dict):
+            continue
+
+        line_ids = [str(x) for x in _ensure_list(g.get("line_ids"))]
+        if valid_ids:
+            line_ids = [x for x in line_ids if x in valid_ids]
+
+        anchor_type = g.get("anchor_type", "thematic")
+        if anchor_type not in {"lexical", "formula", "keyword", "inversion", "thematic"}:
+            anchor_type = "thematic"
+
+        normalized_parallels.append(
+            {
+                "id": str(g.get("id", "")),
+                "line_ids": line_ids,
+                "anchor_type": anchor_type,
+                "evidence": [str(x) for x in _ensure_list(g.get("evidence"))],
+                "why": str(g.get("why", "")),
+            }
+        )
+    s["parallels"] = normalized_parallels
 
     # candidates
     candidates = _ensure_list(s.get("chiasm_candidates"))
@@ -146,25 +174,15 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
                 continue
 
             # Back-compat: old schema used left/right strings (possibly "L3-L4")
-            left_ids: List[str] = []
-            right_ids: List[str] = []
-
             if "left_ids" in p or "right_ids" in p:
                 left_ids = [str(x) for x in _ensure_list(p.get("left_ids"))]
                 right_ids = [str(x) for x in _ensure_list(p.get("right_ids"))]
             else:
                 left_raw = p.get("left", "")
                 right_raw = p.get("right", "")
-                if isinstance(left_raw, str):
-                    left_ids = _split_line_range(left_raw)
-                else:
-                    left_ids = [str(x) for x in _ensure_list(left_raw)]
-                if isinstance(right_raw, str):
-                    right_ids = _split_line_range(right_raw)
-                else:
-                    right_ids = [str(x) for x in _ensure_list(right_raw)]
+                left_ids = _split_line_range(left_raw) if isinstance(left_raw, str) else [str(x) for x in _ensure_list(left_raw)]
+                right_ids = _split_line_range(right_raw) if isinstance(right_raw, str) else [str(x) for x in _ensure_list(right_raw)]
 
-            # Strip invalid ids if we know the valid set
             if valid_ids:
                 left_ids = [x for x in left_ids if x in valid_ids]
                 right_ids = [x for x in right_ids if x in valid_ids]
@@ -200,6 +218,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             )
 
         score = c.get("score_breakdown") if isinstance(c.get("score_breakdown"), dict) else {}
+
         def _num(x: Any, default: float = 0.0) -> float:
             try:
                 return float(x)
@@ -244,7 +263,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             left_ids = [str(x) for x in _ensure_list(p.get("left_ids"))]
             right_ids = [str(x) for x in _ensure_list(p.get("right_ids"))]
 
-            # Back-compat if old fields exist
+            # Back-compat
             if not left_ids and "left" in p:
                 left_raw = p.get("left", "")
                 left_ids = _split_line_range(left_raw) if isinstance(left_raw, str) else [str(x) for x in _ensure_list(left_raw)]
@@ -277,12 +296,17 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
                 }
             )
 
+        try:
+            score_total = float(best.get("score_total", 0.0) or 0.0)
+        except Exception:
+            score_total = 0.0
+
         s["best_chiasm"] = {
             "candidate_id": str(best.get("candidate_id", "")),
             "pattern": str(best.get("pattern", "")),
             "pivot": {"line_id": pivot_id, "why": pivot_why},
             "pairs": normalized_pairs,
-            "score_total": float(best.get("score_total", 0.0) or 0.0),
+            "score_total": score_total,
         }
     else:
         s["best_chiasm"] = None
@@ -291,11 +315,14 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
     if s["detected"] != "chiasm":
         s["best_chiasm"] = None
 
+    # If none, keep parallels empty (noise control)
+    if s["detected"] == "none":
+        s["parallels"] = []
+
 
 def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Coerce slightly-wrong LLM JSON into the AnalysisResponse schema.
-    Keeps the project moving without fighting the model every time.
     """
     # Ensure required lists are lists of strings
     for k in [
@@ -309,14 +336,11 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     ]:
         data[k] = [str(x) for x in _ensure_list(data.get(k))]
 
-    # confidence
     data["confidence"] = _as_confidence(data.get("confidence"))
 
-    # reference optional
     if "reference" not in data:
         data["reference"] = None
 
-    # peshat_summary required
     if not isinstance(data.get("peshat_summary"), str):
         data["peshat_summary"] = str(data.get("peshat_summary", ""))
 
