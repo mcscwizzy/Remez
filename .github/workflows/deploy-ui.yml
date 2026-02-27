@@ -100,6 +100,7 @@ jobs:
               --registry-login-server "${REGISTRY_HOST}" \
               --registry-username "${GHCR_USERNAME}" \
               --registry-password "${GHCR_PAT}" \
+              --os-type Linux \
               --ip-address Public \
               --ports 80 \
               --dns-name-label "${ACI_DNS_LABEL}" \
