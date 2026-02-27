@@ -1,3 +1,5 @@
+# api/app/models.py
+
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 
@@ -5,11 +7,11 @@ from pydantic import BaseModel, Field
 class AnalyzeRequest(BaseModel):
     reference: Optional[str] = Field(
         default=None,
-        description="Bible reference like 'Genesis 15:1-6'"
+        description="Bible reference like 'Genesis 15:1-6'",
     )
     text: Optional[str] = Field(
         default=None,
-        description="Raw passage text (if not using reference)"
+        description="Raw passage text (if not using reference)",
     )
     profile: Literal["heiser"] = Field(default="heiser")
 
@@ -40,13 +42,21 @@ class StructureFrame(BaseModel):
     evidence: List[str] = Field(default_factory=list)
 
 
+class ParallelGroup(BaseModel):
+    id: str
+    line_ids: List[str] = Field(default_factory=list)
+    anchor_type: Literal["lexical", "formula", "keyword", "inversion", "thematic"]
+    evidence: List[str] = Field(default_factory=list)
+    why: str
+
+
 class ChiasmPivot(BaseModel):
     line_id: str
     why: str
 
 
 class ChiasmPair(BaseModel):
-    label: str  # "A/A'", "B/B'", etc.
+    label: str
     left_ids: List[str] = Field(default_factory=list)
     right_ids: List[str] = Field(default_factory=list)
     anchor_type: Literal["lexical", "formula", "keyword", "inversion", "thematic"]
@@ -86,6 +96,8 @@ class StructureResult(BaseModel):
     lines: List[StructureLine] = Field(default_factory=list)
 
     frame: Optional[StructureFrame] = None
+
+    parallels: List[ParallelGroup] = Field(default_factory=list)
 
     chiasm_candidates: List[ChiasmCandidate] = Field(default_factory=list)
 
