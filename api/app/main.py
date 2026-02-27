@@ -1,12 +1,28 @@
 # api/app/main.py
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from .models import AnalyzeRequest, AnalysisResponse
 from .prompts import build_prompt
 from .services.azure_foundry import call_azure_foundry
 from .services.normalizer import normalize_llm_output
 import json
+import os
 
 app = FastAPI(title="Remez API", version="0.2.1")
+
+cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "*")
+if cors_origins.strip() == "*":
+    allow_origins = ["*"]
+else:
+    allow_origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
