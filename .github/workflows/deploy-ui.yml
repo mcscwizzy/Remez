@@ -18,6 +18,7 @@ env:
   TF_DIR: infra
   IMAGE_NAME: remez-ui
   API_IMAGE_NAME: remez-api
+  API_IMAGE_TAG: latest
   DEPLOY_ENVIRONMENT: dev
   REGISTRY_HOST: ghcr.io
   AZURE_LOCATION: eastus
@@ -102,7 +103,7 @@ jobs:
           IMAGE_URI: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
           TF_VAR_environment: ${{ vars.DEPLOY_ENVIRONMENT || env.DEPLOY_ENVIRONMENT }}
           TF_VAR_location: ${{ vars.AZURE_LOCATION || env.AZURE_LOCATION }}
-          TF_VAR_image: ${{ format('{0}/{1}/{2}:latest', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.API_IMAGE_NAME || env.API_IMAGE_NAME) }}
+          TF_VAR_image: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.API_IMAGE_NAME || env.API_IMAGE_NAME, vars.API_IMAGE_TAG || env.API_IMAGE_TAG) }}
           TF_VAR_ui_image: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
           TF_VAR_registry_server: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
           TF_VAR_registry_username: ${{ secrets.GHCR_USERNAME }}
@@ -110,7 +111,7 @@ jobs:
           TF_VAR_azure_ai_endpoint: ${{ secrets.AZURE_AI_ENDPOINT }}
           TF_VAR_azure_ai_api_key: ${{ secrets.AZURE_AI_API_KEY }}
         run: |
-          if [ -z "${TF_VAR_ui_image}" ]; then
+          if [ -z "${TF_VAR_ui_image:-}" ]; then
             echo "TF_VAR_ui_image is empty after deterministic image URI computation."
             exit 1
           fi
