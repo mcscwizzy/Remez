@@ -29,6 +29,8 @@ jobs:
       contents: read
       packages: write
     outputs:
+      image_repository: ${{ steps.meta.outputs.image_repository }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
       image_uri: ${{ steps.meta.outputs.image_uri }}
     steps:
       - name: Checkout
@@ -52,8 +54,14 @@ jobs:
           IMAGE_NAME: ${{ vars.IMAGE_NAME || env.IMAGE_NAME }}
         run: |
           NS_LC="$(echo "${REGISTRY_NAMESPACE}" | tr '[:upper:]' '[:lower:]')"
-          IMAGE_URI="${REGISTRY_HOST}/${NS_LC}/${IMAGE_NAME}:${GITHUB_SHA}"
+          IMAGE_REPOSITORY="${REGISTRY_HOST}/${NS_LC}/${IMAGE_NAME}"
+          IMAGE_TAG="${GITHUB_SHA}"
+          IMAGE_URI="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+          echo "image_repository=${IMAGE_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "image_uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_REPOSITORY=${IMAGE_REPOSITORY}" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
           echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
 
       - name: Build and push image
@@ -110,10 +118,12 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         env:
           TF_IN_AUTOMATION: "true"
+          IMAGE_REPOSITORY: ${{ needs.build_push_ghcr.outputs.image_repository }}
+          IMAGE_TAG: ${{ needs.build_push_ghcr.outputs.image_tag }}
           IMAGE_URI: ${{ needs.build_push_ghcr.outputs.image_uri }}
           TF_VAR_environment: ${{ vars.DEPLOY_ENVIRONMENT || env.DEPLOY_ENVIRONMENT }}
           TF_VAR_location: ${{ vars.AZURE_LOCATION || env.AZURE_LOCATION }}
-          TF_VAR_image: ${{ needs.build_push_ghcr.outputs.image_uri }}
+          TF_VAR_image: ${{ env.IMAGE_URI }}
           TF_VAR_registry_server: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
           TF_VAR_registry_username: ${{ secrets.GHCR_USERNAME }}
           TF_VAR_registry_password: ${{ secrets.GHCR_PAT }}
@@ -151,11 +161,15 @@ jobs:
           az extension add --name containerapp --upgrade
 
       - name: Update Container App image
+        env:
+          IMAGE_REPOSITORY: ${{ needs.build_push_ghcr.outputs.image_repository }}
+          IMAGE_TAG: ${{ needs.build_push_ghcr.outputs.image_tag }}
+          IMAGE_URI: ${{ needs.build_push_ghcr.outputs.image_uri }}
         run: |
           az containerapp update \
             --name "${{ needs.terraform_apply.outputs.container_app_name }}" \
             --resource-group "${{ needs.terraform_apply.outputs.resource_group_name }}" \
-            --image "${{ needs.build_push_ghcr.outputs.image_uri }}"
+            --image "${IMAGE_URI}"
 
       - name: Show URL
         run: |
