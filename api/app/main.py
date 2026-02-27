@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from .models import AnalyzeRequest, AnalysisResponse, KeyTerm, NTParallel
 from .prompts import build_prompt
-from .services.ollama import call_ollama
+from .services.azure_foundry import call_azure_foundry
 from .services.normalizer import normalize_llm_output
 import json
 
@@ -29,7 +29,7 @@ async def analyze(req: AnalyzeRequest):
 
     prompt = build_prompt(req.reference, req.text)
 
-    raw_response = await call_ollama(prompt)
+    raw_response = await call_azure_foundry(prompt)
 
     try:
         parsed = json.loads(raw_response)
@@ -38,7 +38,7 @@ async def analyze(req: AnalyzeRequest):
         if too_empty(parsed):
             # retry once with a stronger nudge
             prompt2 = prompt + "\n\nYou returned empty arrays. Retry and meet the minimum requirements."
-            raw_response = await call_ollama(prompt2)
+            raw_response = await call_azure_foundry(prompt2)
             parsed = normalize_llm_output(json.loads(raw_response))
 
         return AnalysisResponse(**parsed)  
