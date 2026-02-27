@@ -88,11 +88,28 @@ jobs:
             --location "${AZURE_LOCATION}"
 
           if az container show --resource-group "${ACI_RESOURCE_GROUP}" --name "${ACI_NAME}" >/dev/null 2>&1; then
-            az container update \
+            az container delete \
               --resource-group "${ACI_RESOURCE_GROUP}" \
               --name "${ACI_NAME}" \
-              --image "${IMAGE_URI}"
+              --yes
           else
+            az container create \
+              --resource-group "${ACI_RESOURCE_GROUP}" \
+              --name "${ACI_NAME}" \
+              --image "${IMAGE_URI}" \
+              --registry-login-server "${REGISTRY_HOST}" \
+              --registry-username "${GHCR_USERNAME}" \
+              --registry-password "${GHCR_PAT}" \
+              --os-type Linux \
+              --cpu 1 \
+              --memory 1 \
+              --ip-address Public \
+              --ports 80 \
+              --dns-name-label "${ACI_DNS_LABEL}" \
+              --restart-policy Always
+          fi
+
+          if ! az container show --resource-group "${ACI_RESOURCE_GROUP}" --name "${ACI_NAME}" >/dev/null 2>&1; then
             az container create \
               --resource-group "${ACI_RESOURCE_GROUP}" \
               --name "${ACI_NAME}" \
