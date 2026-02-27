@@ -81,3 +81,44 @@ resource "azurerm_container_app" "api" {
     }
   }
 }
+
+resource "azurerm_container_app" "ui" {
+  name                         = "${local.prefix}-ui"
+  container_app_environment_id = azurerm_container_app_environment.cae.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
+
+  ingress {
+    external_enabled = true
+    target_port      = var.ui_container_port
+    transport        = "auto"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  secret {
+    name  = "registry-password"
+    value = var.registry_password
+  }
+
+  registry {
+    server               = var.registry_server
+    username             = var.registry_username
+    password_secret_name = "registry-password"
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 1
+
+    container {
+      name   = "ui"
+      image  = var.ui_image
+      cpu    = 0.25
+      memory = "0.5Gi"
+    }
+  }
+}

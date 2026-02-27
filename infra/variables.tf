@@ -13,9 +13,19 @@ variable "image" {
   type        = string
 }
 
+variable "ui_image" {
+  description = "Full UI container image reference (tagged), e.g. ghcr.io/owner/remez-ui:sha"
+  type        = string
+}
+
 variable "container_port" {
   type    = number
   default = 8000
+}
+
+variable "ui_container_port" {
+  type    = number
+  default = 80
 }
 
 variable "registry_server" {
