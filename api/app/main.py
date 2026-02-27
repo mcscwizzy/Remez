@@ -7,7 +7,7 @@ from .services.azure_foundry import call_azure_foundry
 from .services.normalizer import normalize_llm_output
 import json
 
-app = FastAPI(title="Remez API", version="0.2.0")
+app = FastAPI(title="Remez API", version="0.2.1")
 
 
 @app.get("/health")
@@ -26,6 +26,7 @@ async def analyze(req: AnalyzeRequest):
         detected = structure.get("detected", "none")
         parallels = structure.get("parallels", [])
 
+        # Enforce Option A: parallelism MUST include at least 2 parallel groups
         missing_parallels = (detected == "parallelism" and len(parallels) < 2)
 
         return (
@@ -41,18 +42,21 @@ async def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=400, detail="Provide either 'reference' or 'text'.")
 
     prompt = build_prompt(req.reference, req.text)
+
+    # First attempt
     raw_response = await call_azure_foundry(prompt)
 
     try:
         parsed = normalize_llm_output(json.loads(raw_response))
 
+        # Retry once if schema-minimums are violated
         if too_empty(parsed):
             prompt2 = prompt + (
                 "\n\nYour output was missing required structure elements.\n"
                 "- structure.lines must be populated with ids L1..Ln.\n"
                 "- If structure.detected == 'parallelism', structure.parallels must contain at least 2 groups.\n"
                 "- If structure.detected != 'chiasm', structure.best_chiasm must be null.\n"
-                "Retry and comply with the schema exactly."
+                "Return JSON only and comply with the schema exactly."
             )
             raw_response = await call_azure_foundry(prompt2)
             parsed = normalize_llm_output(json.loads(raw_response))
