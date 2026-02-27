@@ -94,7 +94,6 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
         s = {}
         data["structure"] = s
 
-    # detected/confidence
     detected = s.get("detected", "none")
     if detected not in {"chiasm", "parallelism", "none"}:
         detected = "none"
@@ -115,7 +114,10 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
 
     valid_ids = {ln["id"] for ln in normalized_lines if ln.get("id")}
 
-    # frame: validate ids against valid_ids, else null it
+    # cautions
+    s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
+
+    # frame (validate ids)
     frame = s.get("frame")
     if isinstance(frame, dict):
         left_id = str(frame.get("left_id", ""))
@@ -125,17 +127,14 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             s["frame"] = {"left_id": left_id, "right_id": right_id, "evidence": evidence}
         else:
             s["frame"] = None
-            # only add a caution if it tried to set a frame
             if left_id or right_id:
-                s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
-                s["cautions"].append("Normalizer dropped structure.frame because frame ids were invalid for structure.lines.")
+                s["cautions"].append(
+                    "Normalizer dropped structure.frame because frame ids were invalid for structure.lines."
+                )
     else:
         s["frame"] = None
 
-    # cautions always list
-    s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
-
-    # parallels: always create the key and normalize
+    # parallels (always present)
     parallels = _ensure_list(s.get("parallels"))
     normalized_parallels = []
     for g in parallels:
@@ -161,7 +160,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
         )
     s["parallels"] = normalized_parallels
 
-    # chiasm_candidates
+    # candidates
     candidates = _ensure_list(s.get("chiasm_candidates"))
     normalized_candidates = []
     for c in candidates:
@@ -178,6 +177,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             if not isinstance(p, dict):
                 continue
 
+            # schema + back-compat
             if "left_ids" in p or "right_ids" in p:
                 left_ids = [str(x) for x in _ensure_list(p.get("left_ids"))]
                 right_ids = [str(x) for x in _ensure_list(p.get("right_ids"))]
@@ -197,7 +197,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
 
             evidence = [str(x) for x in _ensure_list(p.get("evidence"))]
 
-            # Pivot exclusivity
+            # Pivot exclusivity enforcement
             if pivot_id:
                 removed = False
                 if pivot_id in left_ids:
@@ -267,6 +267,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             left_ids = [str(x) for x in _ensure_list(p.get("left_ids"))]
             right_ids = [str(x) for x in _ensure_list(p.get("right_ids"))]
 
+            # back-compat
             if not left_ids and "left" in p:
                 left_raw = p.get("left", "")
                 left_ids = _split_line_range(left_raw) if isinstance(left_raw, str) else [str(x) for x in _ensure_list(left_raw)]
@@ -318,7 +319,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
     if s["detected"] != "chiasm":
         s["best_chiasm"] = None
 
-    # If none, keep parallels empty (noise control)
+    # Noise control
     if s["detected"] == "none":
         s["parallels"] = []
 
