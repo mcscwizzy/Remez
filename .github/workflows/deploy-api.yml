@@ -123,13 +123,17 @@ jobs:
           IMAGE_URI: ${{ needs.build_push_ghcr.outputs.image_uri }}
           TF_VAR_environment: ${{ vars.DEPLOY_ENVIRONMENT || env.DEPLOY_ENVIRONMENT }}
           TF_VAR_location: ${{ vars.AZURE_LOCATION || env.AZURE_LOCATION }}
-          TF_VAR_image: ${{ env.IMAGE_URI }}
+          TF_VAR_image: ${{ needs.build_push_ghcr.outputs.image_uri }}
           TF_VAR_registry_server: ${{ vars.REGISTRY_HOST || env.REGISTRY_HOST }}
           TF_VAR_registry_username: ${{ secrets.GHCR_USERNAME }}
           TF_VAR_registry_password: ${{ secrets.GHCR_PAT }}
           TF_VAR_azure_ai_endpoint: ${{ secrets.AZURE_AI_ENDPOINT }}
           TF_VAR_azure_ai_api_key: ${{ secrets.AZURE_AI_API_KEY }}
         run: |
+          if [ -z "${TF_VAR_image}" ]; then
+            echo "TF_VAR_image is empty; build_push_ghcr output image_uri was not set."
+            exit 1
+          fi
           terraform apply -auto-approve -input=false
 
       - name: Capture Terraform outputs
