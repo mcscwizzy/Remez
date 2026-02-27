@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import "./index.css";
-import type { AnalyzeRequest, AnalyzeResponse, RemezMode } from "./types";
+import type { AnalyzeRequest, RemezMode } from "./types";
+import type { UiAnalyzeResponse } from "./types/analyze";
 import { analyzePassage } from "./lib/api";
 import { Toggle } from "./components/Toggle";
 import { ResponsePanel } from "./components/ResponsePanel";
@@ -9,7 +10,7 @@ type HistoryItem = {
   id: string;
   ts: number;
   request: AnalyzeRequest;
-  response?: AnalyzeResponse;
+  response?: UiAnalyzeResponse;
   error?: string;
 };
 
@@ -27,7 +28,7 @@ export default function App() {
   const [includeNTParallels, setIncludeNTParallels] = useState(true);
 
   const [loading, setLoading] = useState(false);
-  const [current, setCurrent] = useState<AnalyzeResponse | null>(null);
+  const [current, setCurrent] = useState<UiAnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [history, setHistory] = useState<HistoryItem[]>([]);

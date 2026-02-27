@@ -1,9 +1,9 @@
-import type { AnalyzeRequest, AnalyzeResponse } from "../types";
+// src/lib/api.ts
+import type { ApiAnalyzeResponse, UiAnalyzeResponse } from "../types/analyze";
+import { normalizeAnalyzeResponse } from "./normalizeAnalyzeResponse";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-export async function analyzePassage(payload: AnalyzeRequest): Promise<AnalyzeResponse> {
-  const res = await fetch(`${API_BASE}/api/analyze`, {
+export async function analyzePassage(payload: unknown): Promise<UiAnalyzeResponse> {
+  const res = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -11,9 +11,11 @@ export async function analyzePassage(payload: AnalyzeRequest): Promise<AnalyzeRe
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
+    throw new Error(`Analyze failed (${res.status}): ${text || res.statusText}`);
   }
 
-  const data = (await res.json()) as AnalyzeResponse;
-  return { ...data, raw: data };
+  const apiData = (await res.json()) as ApiAnalyzeResponse;
+
+  // Normalize to stable UI shape
+  return normalizeAnalyzeResponse(apiData);
 }
