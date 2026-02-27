@@ -1,5 +1,4 @@
 # api/app/main.py
-
 from fastapi import FastAPI, HTTPException
 from .models import AnalyzeRequest, AnalysisResponse
 from .prompts import build_prompt
@@ -15,42 +14,41 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/analyze", response_model=AnalysisResponse)
-async def analyze(req: AnalyzeRequest):
-    def too_empty(p: dict) -> bool:
-        structure = p.get("structure") or {}
-        if not isinstance(structure, dict):
-            return True
+def _too_empty(p: dict) -> bool:
+    structure = p.get("structure") or {}
+    if not isinstance(structure, dict):
+        return True
 
-        lines = structure.get("lines", [])
-        detected = structure.get("detected", "none")
-        parallels = structure.get("parallels", [])
+    lines = structure.get("lines", [])
+    detected = structure.get("detected", "none")
+    parallels = structure.get("parallels", [])
 
-        # Enforce Option A: parallelism MUST include at least 2 parallel groups
-        missing_parallels = (detected == "parallelism" and len(parallels) < 2)
+    # Enforce Option A: parallelism MUST include at least 2 parallel groups
+    missing_parallels = (detected == "parallelism" and len(parallels) < 2)
 
-        return (
-            len(lines) < 2
-            or missing_parallels
-            or len(p.get("cultural_worldview_notes", [])) < 2
-            or len(p.get("motifs_and_patterns", [])) < 2
-            or len(p.get("second_temple_bridge", [])) < 1
-            or len(p.get("nt_parallels", [])) < 1
-        )
+    return (
+        len(lines) < 2
+        or missing_parallels
+        or len(p.get("cultural_worldview_notes", [])) < 2
+        or len(p.get("motifs_and_patterns", [])) < 2
+        or len(p.get("second_temple_bridge", [])) < 1
+        or len(p.get("nt_parallels", [])) < 1
+    )
 
+
+async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse:
     if not req.reference and not req.text:
         raise HTTPException(status_code=400, detail="Provide either 'reference' or 'text'.")
 
     prompt = build_prompt(req.reference, req.text)
 
-    # First attempt
     raw_response = await call_azure_foundry(prompt)
 
     try:
         parsed = normalize_llm_output(json.loads(raw_response))
 
         # Retry once if schema-minimums are violated
-        if too_empty(parsed):
+        if _too_empty(parsed):
             prompt2 = prompt + (
                 "\n\nYour output was missing required structure elements.\n"
                 "- structure.lines must be populated with ids L1..Ln.\n"
@@ -67,3 +65,15 @@ async def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=500, detail="Model did not return valid JSON.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse model output: {str(e)}")
+
+
+# Keep your original endpoint
+@app.post("/analyze", response_model=AnalysisResponse)
+async def analyze(req: AnalyzeRequest):
+    return await _analyze_impl(req)
+
+
+# Add the UI-friendly endpoint
+@app.post("/api/analyze", response_model=AnalysisResponse)
+async def api_analyze(req: AnalyzeRequest):
+    return await _analyze_impl(req)
