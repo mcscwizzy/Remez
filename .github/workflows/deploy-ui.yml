@@ -101,6 +101,8 @@ jobs:
               --registry-username "${GHCR_USERNAME}" \
               --registry-password "${GHCR_PAT}" \
               --os-type Linux \
+              --cpu 1 \
+              --memory 1 \
               --ip-address Public \
               --ports 80 \
               --dns-name-label "${ACI_DNS_LABEL}" \
