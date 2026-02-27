@@ -130,7 +130,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
     # cautions
     s["cautions"] = [str(x) for x in _ensure_list(s.get("cautions"))]
 
-    # parallels
+    # parallels (always create the key)
     parallels = _ensure_list(s.get("parallels"))
     normalized_parallels = []
     for g in parallels:
@@ -173,7 +173,6 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             if not isinstance(p, dict):
                 continue
 
-            # Back-compat: old schema used left/right strings (possibly "L3-L4")
             if "left_ids" in p or "right_ids" in p:
                 left_ids = [str(x) for x in _ensure_list(p.get("left_ids"))]
                 right_ids = [str(x) for x in _ensure_list(p.get("right_ids"))]
@@ -193,7 +192,7 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
 
             evidence = [str(x) for x in _ensure_list(p.get("evidence"))]
 
-            # Pivot exclusivity: remove pivot line if present
+            # Pivot exclusivity
             if pivot_id:
                 removed = False
                 if pivot_id in left_ids:
@@ -263,7 +262,6 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
             left_ids = [str(x) for x in _ensure_list(p.get("left_ids"))]
             right_ids = [str(x) for x in _ensure_list(p.get("right_ids"))]
 
-            # Back-compat
             if not left_ids and "left" in p:
                 left_raw = p.get("left", "")
                 left_ids = _split_line_range(left_raw) if isinstance(left_raw, str) else [str(x) for x in _ensure_list(left_raw)]
@@ -324,7 +322,6 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Coerce slightly-wrong LLM JSON into the AnalysisResponse schema.
     """
-    # Ensure required lists are lists of strings
     for k in [
         "keywords",
         "themes",
