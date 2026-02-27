@@ -153,9 +153,9 @@ Structure detection rules (hard):
 - Prefer verse+clause boundaries; avoid long blobs.
 
 2) Parallels (required when detected="parallelism"):
-- If detected="parallelism", you MUST populate structure.parallels with at least 2 meaningful groups.
+- If detected="parallelism", you MUST populate structure.parallels with at least 2 groups.
 - Each parallels group MUST reference valid line_ids from structure.lines.
-- Groups must reflect real repetition or conceptual parallelism, not trivial adjacency.
+- Keep groups meaningful (avoid listing every line). Use groups that show repetition or conceptual parallels.
 
 3) Candidate generation:
 - Produce at most 2 chiasm_candidates.
@@ -165,41 +165,57 @@ Structure detection rules (hard):
 - The pivot line_id MUST NOT appear in any pair.left_ids or pair.right_ids.
 
 5) Pair ID discipline:
-- left_ids and right_ids MUST ONLY contain valid line IDs present in structure.lines.
+- left_ids and right_ids MUST ONLY contain valid line IDs present in structure.lines (e.g., "L3").
 - Do NOT use ranges like "L3-L4". Use arrays: ["L3","L4"].
 
 6) No recycling lines:
-- A given line ID may appear in at most ONE mirrored pair.
+- A given line ID may appear in at most ONE mirrored pair (across all pairs in a candidate).
 
 7) Frame vs pairs:
-- If opening and closing lines function as inclusio, use structure.frame.
-- Do NOT count frame toward mirrored pair count.
+- If the passage has opening/closing framing (inclusio), put it in structure.frame.
+- Do NOT count structure.frame toward the mirrored pair count.
 
 8) Validation threshold for detected="chiasm":
-- Require at least 3 mirrored pairs (excluding frame).
-- At least 2 pairs must use anchor_type in {"lexical","formula","keyword"}.
-- Pivot must clearly function as hinge/climax.
-- If anchors are mostly thematic, classify as "parallelism".
+- Require at least 3 mirrored pairs (A/A’, B/B’, C/C’) NOT counting frame.
+- Each pair MUST have at least 1 evidence anchor and an anchor_type.
+- At least 2 pairs MUST have anchor_type in {"lexical","formula","keyword"} (not all thematic).
+- Pivot MUST be justified as hinge/climax/turning point (not vibes).
+- Symmetry must mirror outward from pivot; penalize excessive skipping.
 
 9) Anti-hallucination gates:
-- Do not create symmetry from loose synonym similarity.
-- Default to "none" if uncertain.
-- Use "parallelism" if repetition exists but no strong mirrored pivot.
+- Do not “create” symmetry via loose synonyms.
+- If most anchors are thematic, classify as "parallelism" instead of "chiasm".
+- Default to "none" if uncertain; "parallelism" if repetition exists without mirrored pivot.
 
-Scoring guidance:
+Scoring guidance (for score_breakdown.total):
 - pair_count_strength: 0–3
 - lexical_anchor_strength: 0–3
 - semantic_anchor_strength: 0–3
 - pivot_strength: 0–2
 - noise_penalty: 0 to -3
-
 Cutoffs:
-- total >= 7 → "chiasm"
-- total 4–6 → "parallelism"
-- total <= 3 → "none"
+- total >= 7 → detected="chiasm"
+- total 4–6 → detected="parallelism"
+- total <= 3 → detected="none"
 
 General rules:
-- Every list must be a JSON array.
-- confidence must be "high", "medium", or "low".
-- Do not drift from schema.
+- If you are unsure, still include the key with a reasonable default.
+- Every list must be a JSON array, even if it has 1 item.
+- confidence fields must be one of: "high", "medium", "low" (NOT a number).
+
+Guardrails:
+- Do not introduce later theological systems (e.g., atonement theories) unless explicitly grounded in the passage or an explicit NT allusion.
+- Second Temple bridge must stay tightly connected to the passage’s motifs.
+- Prefer ANE covenant/inheritance framing and Israelite worldview assumptions over modern devotional language.
+"""
+
+def build_prompt(reference: str | None, text: str | None) -> str:
+    content = reference if reference else text
+    return f"""{SYSTEM_CONSTITUTION}
+
+{SCHEMA_INSTRUCTIONS}
+
+{MINIMUMS}
+
+Passage: {content}
 """
