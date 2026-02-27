@@ -49,7 +49,9 @@ jobs:
           context: ./api
           file: ./api/Dockerfile
           push: true
-          tags: ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
+          tags: |
+            ${{ format('{0}/{1}/{2}:{3}', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME, github.sha) }}
+            ${{ format('{0}/{1}/{2}:latest', vars.REGISTRY_HOST || env.REGISTRY_HOST, vars.GHCR_NAMESPACE || github.repository_owner, vars.IMAGE_NAME || env.IMAGE_NAME) }}
 
   terraform_apply:
     name: Terraform Apply (Azure)
