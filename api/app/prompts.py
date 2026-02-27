@@ -8,11 +8,10 @@ Minimum content requirements:
 - application: at least 1 item (keep it restrained; one sentence)
 - themes: at least 3 items
 
-Structure requirements:
-- Always attempt structure analysis first (chiasm / parallelism / none).
-- Provide lines[] segmentation (L1..Ln). Keep each line short (verse/clause sized).
-- chiasm_candidates: 0–2 candidates max.
-- If structure.detected != "chiasm", best_chiasm MUST be null.
+Structure requirements (always required):
+- Always perform structure analysis FIRST and populate structure.lines with ids L1..Ln.
+- structure.chiasm_candidates: 0–2 candidates max.
+- If structure.detected != "chiasm", structure.best_chiasm MUST be null.
 
 Rules:
 - Do not return empty arrays unless the passage truly contains none (rare).
@@ -50,17 +49,34 @@ Return JSON with EXACTLY these keys and types:
   "structure": {
     "detected": "chiasm" | "parallelism" | "none",
     "confidence": "high" | "medium" | "low",
+
     "lines": [
       {"id": string, "text": string}
     ],
+
+    "frame": {
+      "left_id": string,
+      "right_id": string,
+      "evidence": [string, ...]
+    } or null,
+
     "chiasm_candidates": [
       {
         "id": string,
         "pattern": string,
+
         "pivot": {"line_id": string, "why": string},
+
         "pairs": [
-          {"label": string, "left": string, "right": string, "evidence": [string, ...]}
+          {
+            "label": string,
+            "left_ids": [string, ...],
+            "right_ids": [string, ...],
+            "anchor_type": "lexical" | "formula" | "keyword" | "inversion" | "thematic",
+            "evidence": [string, ...]
+          }
         ],
+
         "score_breakdown": {
           "pair_count_strength": number,
           "lexical_anchor_strength": number,
@@ -69,18 +85,27 @@ Return JSON with EXACTLY these keys and types:
           "noise_penalty": number,
           "total": number
         },
+
         "notes": [string, ...]
       }
     ],
+
     "best_chiasm": {
       "candidate_id": string,
       "pattern": string,
       "pivot": {"line_id": string, "why": string},
       "pairs": [
-        {"label": string, "left": string, "right": string, "evidence": [string, ...]}
+        {
+          "label": string,
+          "left_ids": [string, ...],
+          "right_ids": [string, ...],
+          "anchor_type": "lexical" | "formula" | "keyword" | "inversion" | "thematic",
+          "evidence": [string, ...]
+        }
       ],
       "score_total": number
     } or null,
+
     "cautions": [string, ...]
   },
 
@@ -105,24 +130,44 @@ Return JSON with EXACTLY these keys and types:
 }
 
 Structure detection rules (hard):
-1) Segmentation:
-   - Build structure.lines first with ids "L1".."Ln".
-   - Prefer verse+clause boundaries; avoid long blobs.
+
+0) Reply-with-one-first rule:
+- You MUST decide structure.detected first (chiasm/parallelism/none) based on evidence thresholds.
+- Then populate the rest.
+
+1) Segmentation (required):
+- Populate structure.lines first with ids "L1".."Ln".
+- Prefer verse+clause boundaries; avoid long blobs.
 
 2) Candidate generation:
-   - Produce at most 2 chiasm_candidates.
-   - If no candidate meets threshold, detected MUST be "parallelism" or "none" and best_chiasm MUST be null.
+- Produce at most 2 chiasm_candidates.
+- If no candidate meets threshold, detected MUST be "parallelism" or "none" and best_chiasm MUST be null.
 
-3) Validation threshold for detected="chiasm":
-   - Require at least 3 mirrored pairs (A/A’, B/B’, C/C’) OR 2 mirrored pairs + very strong pivot.
-   - Each pair MUST include at least 1 evidence anchor (shared keyword/root, repeated phrase, mirrored action/role, or explicit conceptual inversion).
-   - Pivot MUST be clearly justified as hinge/climax/turning point (not vibes).
-   - Symmetry must mirror outward from pivot; penalize excessive skipping.
+3) Pivot exclusivity:
+- The pivot line_id MUST NOT appear in any pair.left_ids or pair.right_ids.
 
-4) Anti-hallucination gates:
-   - Do not “create” symmetry via loose synonyms.
-   - Do not claim chiasm if evidence per pair cannot be stated in one short sentence.
-   - Default to "none" if uncertain; "parallelism" if repetition exists without mirrored pivot.
+4) Pair ID discipline:
+- left_ids and right_ids MUST ONLY contain valid line IDs present in structure.lines (e.g., "L3").
+- Do NOT use ranges like "L3-L4". Use arrays: ["L3","L4"].
+
+5) No recycling lines:
+- A given line ID may appear in at most ONE mirrored pair (across all pairs in a candidate).
+
+6) Frame vs pairs:
+- If the passage has opening/closing framing (inclusio), put it in structure.frame.
+- Do NOT count structure.frame toward the mirrored pair count.
+
+7) Validation threshold for detected="chiasm":
+- Require at least 3 mirrored pairs (A/A’, B/B’, C/C’) NOT counting frame.
+- Each pair MUST have at least 1 evidence anchor and an anchor_type.
+- At least 2 pairs MUST have anchor_type in {"lexical","formula","keyword"} (not all thematic).
+- Pivot MUST be justified as hinge/climax/turning point (not vibes).
+- Symmetry must mirror outward from pivot; penalize excessive skipping.
+
+8) Anti-hallucination gates:
+- Do not “create” symmetry via loose synonyms.
+- If most anchors are thematic, classify as "parallelism" instead of "chiasm".
+- Default to "none" if uncertain; "parallelism" if repetition exists without mirrored pivot.
 
 Scoring guidance (for score_breakdown.total):
 - pair_count_strength: 0–3
@@ -139,10 +184,11 @@ General rules:
 - If you are unsure, still include the key with a reasonable default.
 - Every list must be a JSON array, even if it has 1 item.
 - confidence fields must be one of: "high", "medium", "low" (NOT a number).
-- Keep guardrails:
-  - Do not introduce later theological systems (e.g., atonement theories) unless explicitly grounded in the passage or an explicit NT allusion.
-  - Second Temple bridge must stay tightly connected to the passage’s motifs (for Genesis 15: promise/seed/inheritance/righteousness, not temple sacrifice).
-  - Prefer ANE covenant/inheritance framing and Israelite worldview assumptions over modern devotional language.
+
+Guardrails:
+- Do not introduce later theological systems (e.g., atonement theories) unless explicitly grounded in the passage or an explicit NT allusion.
+- Second Temple bridge must stay tightly connected to the passage’s motifs (for Genesis 15: promise/seed/inheritance/righteousness, not temple sacrifice).
+- Prefer ANE covenant/inheritance framing and Israelite worldview assumptions over modern devotional language.
 """
 
 def build_prompt(reference: str | None, text: str | None) -> str:
