@@ -3,7 +3,7 @@ import httpx
 
 AZURE_AI_ENDPOINT = os.getenv(
     "AZURE_AI_ENDPOINT",
-    "https://remez-dev-foundry-resource.openai.azure.com/v1/responses",
+    "https://remez-dev-foundry-resource.services.ai.azure.com/api/projects/remez-dev-foundry",
 )
 AZURE_AI_DEPLOYMENT = os.getenv(
     "AZURE_AI_DEPLOYMENT",
