@@ -2,6 +2,10 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Build-time API base URL for Vite (e.g., https://<api-fqdn>)
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 # Install deps
 COPY package.json package-lock.json* ./
 RUN npm ci || npm install
