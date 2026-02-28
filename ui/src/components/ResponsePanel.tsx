@@ -3,7 +3,7 @@ import { Tabs } from "./Tabs";
 import type { UiAnalyzeResponse, LayerId } from "../types/analyze";
 
 function isLayerTab(tab: string): tab is LayerId {
-  return tab === "peshat" || tab === "remez" || tab === "derash" || tab === "sod";
+  return tab === "peshat" || tab === "remez";
 }
 
 export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
@@ -13,8 +13,6 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
     () => [
       { id: "peshat", label: "Peshat" },
       { id: "remez", label: "Remez" },
-      { id: "derash", label: "Derash" },
-      { id: "sod", label: "Sod" },
       { id: "chiasm", label: "Chiasm" },
       { id: "notes", label: "Notes" },
       { id: "raw", label: "Raw" }

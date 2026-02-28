@@ -71,7 +71,7 @@ export default function App() {
         <header className="mb-6">
           <div className="text-2xl font-bold">Remez</div>
           <div className="text-sm text-gray-600">
-            Structured Bible study output (Peshat → Remez → Derash → Sod) + chiasm detection.
+            Structured Bible study output (Peshat → Remez) + chiasm detection.
           </div>
         </header>
 
@@ -109,8 +109,6 @@ export default function App() {
                 >
                   <option value="peshat">Peshat</option>
                   <option value="remez">Remez</option>
-                  <option value="derash">Derash</option>
-                  <option value="sod">Sod</option>
                 </select>
               </label>
 

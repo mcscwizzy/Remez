@@ -24,9 +24,7 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
 
     layers: {
       peshat: { content: asString(api.peshat_summary) },
-      remez: { content: asString(api.remez_summary) },
-      derash: { content: asString(api.derash_summary) },
-      sod: { content: asString(api.sod_summary) }
+      remez: { content: asString(api.remez_summary) }
     },
 
     structure: {
