@@ -222,3 +222,6 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 infra/.terraform.lock.hcl
+
+# Node
+node_modules/

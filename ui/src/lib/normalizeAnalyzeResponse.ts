@@ -23,8 +23,7 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
     reference,
 
     layers: {
-      peshat: { content: asString(api.peshat_summary) },
-      remez: { content: asString(api.remez_summary) }
+      overview: { content: asString(api.overview_summary) }
     },
 
     structure: {

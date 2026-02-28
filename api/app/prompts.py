@@ -141,7 +141,7 @@ Return JSON with EXACTLY these keys and types:
     "cautions": [string, ...]
   },
 
-  "peshat_summary": string,
+  "overview_summary": string,
   "keywords": [string, ...],
   "themes": [string, ...],
   "cultural_worldview_notes": [string, ...],

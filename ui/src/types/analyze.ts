@@ -2,7 +2,7 @@
 
 export type ConfidenceLabel = "low" | "medium" | "high" | string;
 
-export type LayerId = "peshat" | "remez";
+export type LayerId = "overview";
 
 export interface ApiAnalyzeResponse {
   reference?: string;
@@ -10,8 +10,7 @@ export interface ApiAnalyzeResponse {
   // Current backend fields (based on your sample)
   structure?: ApiStructure;
 
-  peshat_summary?: string;
-  remez_summary?: string;
+  overview_summary?: string;
 
   keywords?: string[];
   themes?: string[];

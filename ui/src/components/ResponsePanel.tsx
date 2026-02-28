@@ -3,16 +3,15 @@ import { Tabs } from "./Tabs";
 import type { UiAnalyzeResponse, LayerId } from "../types/analyze";
 
 function isLayerTab(tab: string): tab is LayerId {
-  return tab === "peshat" || tab === "remez";
+  return tab === "overview";
 }
 
 export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
-  const [tab, setTab] = useState<LayerId | "chiasm" | "notes" | "raw">("peshat");
+  const [tab, setTab] = useState<LayerId | "chiasm" | "notes" | "raw">("overview");
 
   const tabs = useMemo(
     () => [
-      { id: "peshat", label: "Peshat" },
-      { id: "remez", label: "Remez" },
+      { id: "overview", label: "Overview" },
       { id: "chiasm", label: "Chiasm" },
       { id: "notes", label: "Notes" },
       { id: "raw", label: "Raw" }

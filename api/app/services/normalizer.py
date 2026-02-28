@@ -344,8 +344,9 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     if "reference" not in data:
         data["reference"] = None
 
-    if not isinstance(data.get("peshat_summary"), str):
-        data["peshat_summary"] = str(data.get("peshat_summary", ""))
+    if not isinstance(data.get("overview_summary"), str):
+        fallback = data.get("peshat_summary", "")
+        data["overview_summary"] = str(fallback)
 
     _normalize_key_terms(data)
     _normalize_nt_parallels(data)

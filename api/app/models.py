@@ -113,7 +113,7 @@ class AnalysisResponse(BaseModel):
 
     structure: StructureResult
 
-    peshat_summary: str
+    overview_summary: str
     keywords: List[str] = Field(default_factory=list)
     themes: List[str] = Field(default_factory=list)
 

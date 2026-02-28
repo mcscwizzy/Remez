@@ -21,7 +21,7 @@ function uid() {
 export default function App() {
   const [reference, setReference] = useState("Genesis 15:1-6");
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<RemezMode>("peshat");
+  const [mode, setMode] = useState<RemezMode>("overview");
 
   const [includeChiasm, setIncludeChiasm] = useState(true);
   const [includeHebraicNotes, setIncludeHebraicNotes] = useState(true);
@@ -70,9 +70,7 @@ export default function App() {
       <div className="mx-auto max-w-6xl p-6">
         <header className="mb-6">
           <div className="text-2xl font-bold">Remez</div>
-          <div className="text-sm text-gray-600">
-            Structured Bible study output (Peshat → Remez) + chiasm detection.
-          </div>
+          <div className="text-sm text-gray-600">Structured Bible study output (Overview) + chiasm detection.</div>
         </header>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -107,8 +105,7 @@ export default function App() {
                   value={mode}
                   onChange={(e) => setMode(e.target.value as RemezMode)}
                 >
-                  <option value="peshat">Peshat</option>
-                  <option value="remez">Remez</option>
+                  <option value="overview">Overview</option>
                 </select>
               </label>
 

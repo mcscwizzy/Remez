@@ -1,4 +1,4 @@
-export type RemezMode = "peshat" | "remez";
+export type RemezMode = "overview";
 
 export type AnalyzeRequest = {
   reference?: string;   // e.g. "Genesis 15:1-6"
