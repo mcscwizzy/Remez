@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Tabs } from "./Tabs";
 import type { UiAnalyzeResponse, LayerId } from "../types/analyze";
-import { StructureFlow } from "./StructureFlow";
+import { VisualPanel } from "./VisualPanel";
 
 function isLayerTab(tab: string): tab is LayerId {
   return tab === "overview";
@@ -132,7 +132,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
         </div>
       )}
 
-      {tab === "visual" && <StructureFlow data={data} />}
+      {tab === "visual" && <VisualPanel data={data} />}
 
       {tab === "notes" && (
         <div className="text-sm space-y-4">
