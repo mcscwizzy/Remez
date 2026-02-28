@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
 import { Tabs } from "./Tabs";
 import type { UiAnalyzeResponse, LayerId } from "../types/analyze";
+import { VisualPanel } from "./VisualPanel";
 
 function isLayerTab(tab: string): tab is LayerId {
   return tab === "overview";
 }
 
 export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
-  const [tab, setTab] = useState<LayerId | "chiasm" | "notes" | "raw">("overview");
+  const [tab, setTab] = useState<LayerId | "visual" | "chiasm" | "notes" | "raw">("overview");
 
   const tabs = useMemo(
     () => [
       { id: "overview", label: "Overview" },
+      { id: "visual", label: "Visual" },
       { id: "chiasm", label: "Chiasm" },
       { id: "notes", label: "Notes" },
       { id: "raw", label: "Raw" }
@@ -129,6 +131,8 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
           ) : null}
         </div>
       )}
+
+      {tab === "visual" && <VisualPanel data={data} />}
 
       {tab === "notes" && (
         <div className="text-sm space-y-4">

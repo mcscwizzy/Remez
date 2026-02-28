@@ -40,7 +40,7 @@ export interface ApiStructure {
   confidence?: ConfidenceLabel;
 
   lines?: Array<{ id: string; text: string }>;
-  frame?: unknown;
+  frame?: ApiStructureFrame | null;
 
   parallels?: ApiParallel[];
 
@@ -48,6 +48,12 @@ export interface ApiStructure {
   best_chiasm?: unknown;
 
   cautions?: string[];
+}
+
+export interface ApiStructureFrame {
+  left_id: string;
+  right_id: string;
+  evidence?: string[];
 }
 
 export interface ApiParallel {
@@ -98,11 +104,18 @@ export interface UiStructure {
   lines: Array<{ id: string; text: string }>;
   parallels: Array<Required<Pick<ApiParallel, "id">> & ApiParallel>;
 
+  frame?: UiStructureFrame | null;
   cautions: string[];
 
   // Chiasm-ready slots (for later)
   chiasm_candidates: unknown[];
   best_chiasm: unknown | null;
+}
+
+export interface UiStructureFrame {
+  left_id: string;
+  right_id: string;
+  evidence?: string[];
 }
 
 export interface UiNotes {

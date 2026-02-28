@@ -36,6 +36,7 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
         ...p
       })),
 
+      frame: (structure.frame as any) ?? null,
       cautions: asArray<string>(structure.cautions, []),
 
       chiasm_candidates: asArray(structure.chiasm_candidates, []),
