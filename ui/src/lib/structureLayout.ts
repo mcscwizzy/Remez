@@ -44,23 +44,22 @@ export function parseBestChiasm(best: UiAnalyzeResponse["structure"]["best_chias
     issues.push("best_chiasm.pairs missing or empty");
   }
 
-  const pairs: ChiasmPair[] = pairsArray
-    .map((pair) => {
-      if (!pair || typeof pair !== "object") return null;
-      const p = pair as Record<string, unknown>;
-      const leftIds = asArray(p.left_ids ?? p.leftIds);
-      const rightIds = asArray(p.right_ids ?? p.rightIds);
-      if (!leftIds.length || !rightIds.length) return null;
-      return {
-        leftIds,
-        rightIds,
-        label: asString(p.label),
-        anchorType: asString(p.anchor_type ?? p.anchorType),
-        evidence: Array.isArray(p.evidence) ? (p.evidence.filter((e) => typeof e === "string") as string[]) : undefined,
-        why: asString(p.why)
-      };
-    })
-    .filter((p): p is ChiasmPair => Boolean(p));
+  const pairs: ChiasmPair[] = [];
+  pairsArray.forEach((pair) => {
+    if (!pair || typeof pair !== "object") return;
+    const p = pair as Record<string, unknown>;
+    const leftIds = asArray(p.left_ids ?? p.leftIds);
+    const rightIds = asArray(p.right_ids ?? p.rightIds);
+    if (!leftIds.length || !rightIds.length) return;
+    pairs.push({
+      leftIds,
+      rightIds,
+      label: asString(p.label),
+      anchorType: asString(p.anchor_type ?? p.anchorType),
+      evidence: Array.isArray(p.evidence) ? (p.evidence.filter((e) => typeof e === "string") as string[]) : undefined,
+      why: asString(p.why)
+    });
+  });
 
   if (!pairs.length) {
     issues.push("No valid pairs in best_chiasm.pairs");

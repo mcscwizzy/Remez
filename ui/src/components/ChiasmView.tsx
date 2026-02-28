@@ -137,7 +137,7 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
             <Cell
               ids={pivotIds}
               lineText={lineText}
-              active={selection.isPivot}
+              active={Boolean(selection.isPivot)}
               onClick={() => setSelection({ isPivot: true })}
               highlightSet={selectedLineIds}
               center
