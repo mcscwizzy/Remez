@@ -3,10 +3,14 @@ import ReactFlow, { Background, Controls, type Edge, type Node } from "reactflow
 import type { UiAnalyzeResponse } from "../types/analyze";
 import "reactflow/dist/style.css";
 import { toPng } from "html-to-image";
+import { ClusterNode } from "./nodes/ClusterNode";
 
 const X_POSITION = 250;
 const Y_SPACING = 120;
 const SNIPPET_LIMIT = 80;
+const NODE_WIDTH = 320;
+const NODE_HEIGHT = 74;
+const CLUSTER_PADDING = 26;
 
 const truncate = (value: string, limit = SNIPPET_LIMIT) => {
   if (value.length <= limit) return value;
@@ -21,6 +25,7 @@ type ParallelGroup = UiAnalyzeResponse["structure"]["parallels"][number];
 
 export function StructureFlow({ data }: StructureFlowProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -58,11 +63,52 @@ export function StructureFlow({ data }: StructureFlowProps) {
     return related;
   }, [selectedId, parallelLookup]);
 
-  const nodes = useMemo<Node[]>(() => {
+  const clusterGroups = useMemo(() => {
+    return parallels
+      .map((group, idx) => ({
+        id: group.id ?? `P${idx + 1}`,
+        anchor: group.anchor_type ?? "parallel",
+        why: group.why,
+        lineIds: (group.line_ids ?? []).filter((id) => lineIdSet.has(id))
+      }))
+      .filter((group) => group.lineIds.length >= 3);
+  }, [parallels, lineIdSet]);
+
+  const clusterLookup = useMemo(() => {
+    const map = new Map<string, string[]>();
+    clusterGroups.forEach((group) => {
+      group.lineIds.forEach((lineId) => {
+        const list = map.get(lineId) ?? [];
+        list.push(group.id);
+        map.set(lineId, list);
+      });
+    });
+    return map;
+  }, [clusterGroups]);
+
+  const highlightedClusterIds = useMemo(() => {
+    if (selectedClusterId) return new Set([selectedClusterId]);
+    if (!selectedId) return new Set<string>();
+    const ids = clusterLookup.get(selectedId) ?? [];
+    return new Set(ids);
+  }, [selectedClusterId, selectedId, clusterLookup]);
+
+  const highlightedNodeIds = useMemo(() => {
+    if (selectedClusterId) {
+      const group = clusterGroups.find((g) => g.id === selectedClusterId);
+      return new Set(group ? group.lineIds : []);
+    }
+    if (selectedId) {
+      return relatedNodeIds;
+    }
+    return new Set<string>();
+  }, [selectedClusterId, selectedId, clusterGroups, relatedNodeIds]);
+
+  const baseNodes = useMemo<Node[]>(() => {
     return lines.map((line, idx) => {
       const isFrame = frameIds.has(line.id);
       const label = `${line.id}: ${truncate(line.text)}`;
-      const isDimmed = selectedId ? !relatedNodeIds.has(line.id) : false;
+      const isDimmed = highlightedNodeIds.size ? !highlightedNodeIds.has(line.id) : false;
 
       return {
         id: line.id,
@@ -80,11 +126,66 @@ export function StructureFlow({ data }: StructureFlowProps) {
           boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
           padding: "10px 12px",
           borderRadius: "10px",
-          opacity: isDimmed ? 0.3 : 1
-        }
+          opacity: isDimmed ? 0.3 : 1,
+          width: NODE_WIDTH
+        },
+        draggable: false
       };
     });
-  }, [lines, frameIds, selectedId, relatedNodeIds]);
+  }, [lines, frameIds, highlightedNodeIds]);
+
+  const clusterNodes = useMemo<Node[]>(() => {
+    if (!clusterGroups.length) return [];
+    return clusterGroups.map((group) => {
+      const members = group.lineIds
+        .map((id) => baseNodes.find((node) => node.id === id))
+        .filter((node): node is Node => Boolean(node));
+      if (!members.length) {
+        return {
+          id: `cluster-${group.id}`,
+          type: "cluster",
+          position: { x: X_POSITION - CLUSTER_PADDING, y: 0 },
+          data: { label: `${group.id} • ${group.anchor}` },
+          style: { width: NODE_WIDTH + CLUSTER_PADDING * 2, height: NODE_HEIGHT },
+          draggable: false
+        };
+      }
+
+      const minY = Math.min(...members.map((node) => node.position.y));
+      const maxY = Math.max(...members.map((node) => node.position.y));
+      const minX = X_POSITION;
+      const height = maxY - minY + NODE_HEIGHT + CLUSTER_PADDING * 2;
+      const width = NODE_WIDTH + CLUSTER_PADDING * 2;
+      const isDimmed =
+        selectedId || selectedClusterId
+          ? !highlightedClusterIds.has(group.id) && selectedClusterId !== group.id
+            ? true
+            : false
+          : false;
+
+      return {
+        id: `cluster-${group.id}`,
+        type: "cluster",
+        position: { x: minX - CLUSTER_PADDING, y: minY - CLUSTER_PADDING },
+        data: {
+          label: `${group.id} • ${group.anchor}`,
+          summary: group.why ? truncate(group.why, 90) : undefined
+        },
+        style: {
+          width,
+          height,
+          opacity: isDimmed ? 0.3 : 1,
+          zIndex: 0
+        },
+        draggable: false,
+        selectable: true
+      };
+    });
+  }, [clusterGroups, baseNodes, selectedId, selectedClusterId, highlightedClusterIds]);
+
+  const nodes = useMemo<Node[]>(() => {
+    return [...clusterNodes, ...baseNodes.map((node) => ({ ...node, zIndex: 1 }))];
+  }, [clusterNodes, baseNodes]);
 
   const edges = useMemo<Edge[]>(() => {
     const result: Edge[] = [];
@@ -103,24 +204,21 @@ export function StructureFlow({ data }: StructureFlowProps) {
 
     parallels.forEach((group, groupIdx) => {
       const ids = (group.line_ids ?? []).filter((id) => lineIdSet.has(id));
-      for (let i = 0; i < ids.length; i += 1) {
-        for (let j = i + 1; j < ids.length; j += 1) {
-          result.push({
-            id: `par-${groupIdx}-${ids[i]}-${ids[j]}`,
-            source: ids[i],
-            target: ids[j],
-            type: "straight",
-            style: { stroke: "#3b82f6", strokeWidth: 1.5, strokeDasharray: "6 4" }
-          });
-          result.push({
-            id: `par-${groupIdx}-${ids[j]}-${ids[i]}`,
-            source: ids[j],
-            target: ids[i],
-            type: "straight",
-            style: { stroke: "#3b82f6", strokeWidth: 1.5, strokeDasharray: "6 4" }
-          });
-        }
-      }
+      if (ids.length !== 2) return;
+      result.push({
+        id: `par-${groupIdx}-${ids[0]}-${ids[1]}`,
+        source: ids[0],
+        target: ids[1],
+        type: "straight",
+        style: { stroke: "#3b82f6", strokeWidth: 1.5, strokeDasharray: "6 4" }
+      });
+      result.push({
+        id: `par-${groupIdx}-${ids[1]}-${ids[0]}`,
+        source: ids[1],
+        target: ids[0],
+        type: "straight",
+        style: { stroke: "#3b82f6", strokeWidth: 1.5, strokeDasharray: "6 4" }
+      });
     });
 
     if (frame && lineIdSet.has(frame.left_id) && lineIdSet.has(frame.right_id)) {
@@ -129,14 +227,18 @@ export function StructureFlow({ data }: StructureFlowProps) {
         source: frame.left_id,
         target: frame.right_id,
         type: "smoothstep",
-        label: "frame",
+        label: "Inclusio / Frame",
         style: { stroke: "#cfae2a", strokeWidth: 3 }
       });
     }
 
-    if (selectedId) {
+    if (selectedId || selectedClusterId) {
       return result.map((edge) => {
-        const isActive = edge.source === selectedId || edge.target === selectedId;
+        const isActive =
+          (selectedId && (edge.source === selectedId || edge.target === selectedId)) ||
+          (selectedClusterId &&
+            highlightedNodeIds.has(edge.source) &&
+            highlightedNodeIds.has(edge.target));
         return {
           ...edge,
           style: {
@@ -148,7 +250,7 @@ export function StructureFlow({ data }: StructureFlowProps) {
     }
 
     return result;
-  }, [lines, parallels, frame, selectedId, lineIdSet]);
+  }, [lines, parallels, frame, selectedId, selectedClusterId, lineIdSet, highlightedNodeIds]);
 
   const selectedLine = useMemo(() => lines.find((line) => line.id === selectedId) ?? null, [lines, selectedId]);
   const selectedParallels = useMemo(
@@ -200,7 +302,16 @@ export function StructureFlow({ data }: StructureFlowProps) {
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable
-            onNodeClick={(_, node) => setSelectedId(node.id)}
+            onNodeClick={(_, node) => {
+              if (node.type === "cluster") {
+                setSelectedClusterId(node.id.replace("cluster-", ""));
+                setSelectedId(null);
+              } else {
+                setSelectedClusterId(null);
+                setSelectedId(node.id);
+              }
+            }}
+            nodeTypes={{ cluster: ClusterNode }}
           >
             <Background color="#e5e7eb" gap={24} />
             <Controls showInteractive={false} />

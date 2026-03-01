@@ -90,26 +90,18 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
     if (!(activeCandidate && hasPivot(activeCandidate.pivotIds))) {
       return (
         <div className="text-sm text-gray-600">
-          No chiasm detected for this passage. Detected structure: {structure.detected || "unknown"}. This passage may
-          use parallelism and/or inclusio instead.
+          No chiasm detected. This passage is structured as {structure.detected || "unknown"}.
         </div>
       );
     }
   }
 
   if (structure.detected === "chiasm" && (!showDetectedChiasm || !hasPivot(layout?.pivotIds ?? []))) {
-    return (
-      <div className="text-sm text-gray-600">Chiasm data incomplete (missing pivot).</div>
-    );
+    return <div className="text-sm text-gray-600">Chiasm data incomplete (missing pivot).</div>;
   }
 
   if (!activeLayout) {
-    return (
-      <div className="text-sm text-gray-600">
-        No chiasm detected for this passage. Detected structure: {structure.detected || "unknown"}. This passage may
-        use parallelism and/or inclusio instead.
-      </div>
-    );
+    return <div className="text-sm text-gray-600">No chiasm detected. This passage is structured as {structure.detected || "unknown"}.</div>;
   }
 
   // Dev note: Genesis 9:6 should yield a low-confidence micro-chiasm candidate.
@@ -251,6 +243,16 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
               <div className="text-gray-600 mt-2">No evidence available.</div>
             )}
             {evidence?.why ? <div className="text-gray-700 mt-2">{evidence.why}</div> : null}
+            {showCandidate && activeCandidate?.weaknesses?.length ? (
+              <div className="mt-3">
+                <div className="text-gray-500 text-xs">Weaknesses</div>
+                <ul className="mt-1 list-disc pl-5 text-gray-700">
+                  {activeCandidate.weaknesses.map((w, idx) => (
+                    <li key={idx}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
