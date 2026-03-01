@@ -67,16 +67,64 @@ export function StructureFlow({ data }: StructureFlowProps) {
     return related;
   }, [selectedId, parallelLookup]);
 
-  const summaryMap = useMemo(() => {
+  const summaryMap = useMemo<{
+    premise: string[];
+    threat: string[];
+    rescue: string[];
+    result: string[];
+    lineText: Map<string, string>;
+    labels: Record<SummaryKey, string>;
+  }>(() => {
     const lineText = new Map(lines.map((line) => [line.id, line.text]));
-    const threatWords = ["flood", "swallowed", "enemy", "enemies", "death", "fear", "snare", "trap", "rage", "waters"];
-    const rescueWords = ["rescued", "deliver", "delivered", "help", "escaped", "blessed", "saved", "snare broken"];
+    const threatWords = [
+      "flood",
+      "torrent",
+      "raging",
+      "swallow",
+      "swallowed",
+      "teeth",
+      "enemy",
+      "enemies",
+      "death",
+      "fear",
+      "snare",
+      "overwhelmed",
+      "waters"
+    ];
+    const praiseWords = ["blessed", "praise", "thanks", "hallelujah"];
+    const deliveranceWords = ["escaped", "delivered", "saved", "rescued", "broke", "broken", "help"];
+    const confessionWords = [
+      "our help is",
+      "in the name of",
+      "maker of heaven",
+      "maker of earth",
+      "the lord is"
+    ];
+    const questionWords = [
+      "why",
+      "how long",
+      "what will you give me",
+      "i have no",
+      "lament",
+      "tears"
+    ];
+    const promiseWords = ["shall", "will", "i will", "covenant", "offspring", "bless", "promise"];
+
+    const countMatches = (text: string, keywords: string[]) =>
+      keywords.reduce((sum, word) => (text.includes(word) ? sum + 1 : sum), 0);
 
     const scored = lines.map((line) => {
       const text = line.text.toLowerCase();
-      const threat = threatWords.some((w) => text.includes(w));
-      const rescue = rescueWords.some((w) => text.includes(w));
-      return { id: line.id, threat, rescue };
+      return {
+        id: line.id,
+        threat: countMatches(text, threatWords),
+        rescue: countMatches(text, deliveranceWords),
+        praise: countMatches(text, praiseWords),
+        confession: countMatches(text, confessionWords),
+        question: countMatches(text, questionWords),
+        promise: countMatches(text, promiseWords),
+        opening: text.includes("song of") || text.includes("let israel say")
+      };
     });
 
     const premise = new Set<string>();
@@ -110,7 +158,7 @@ export function StructureFlow({ data }: StructureFlowProps) {
     };
 
     addFromParallels(threat, threatWords);
-    addFromParallels(rescue, rescueWords);
+    addFromParallels(rescue, deliveranceWords);
 
     if (!threat.size && lines.length) {
       const midStart = Math.floor(lines.length / 3);
@@ -123,12 +171,58 @@ export function StructureFlow({ data }: StructureFlowProps) {
       if (lastGroup) (lastGroup.line_ids ?? []).forEach((id) => rescue.add(id));
     }
 
+    const labelFor = (key: SummaryKey) => {
+      const ids =
+        key === "premise" ? premise : key === "threat" ? threat : key === "rescue" ? rescue : result;
+      const texts = Array.from(ids)
+        .map((id) => (lineText.get(id) ?? "").toLowerCase())
+        .join(" ");
+      const scores = {
+        threat: countMatches(texts, threatWords),
+        rescue: countMatches(texts, deliveranceWords),
+        praise: countMatches(texts, praiseWords),
+        confession: countMatches(texts, confessionWords),
+        question: countMatches(texts, questionWords),
+        promise: countMatches(texts, promiseWords),
+        opening: texts.includes("song of") || texts.includes("let israel say")
+      };
+
+      if (key === "premise") {
+        if (scores.opening) return "Opening";
+        if (texts.includes("let israel say")) return "Communal Confession";
+        return "Setup";
+      }
+      if (key === "threat") {
+        if (scores.threat >= 1) return "Peril Imagery";
+        if (scores.question >= 1) return "Complaint / Question";
+        return "Tension";
+      }
+      if (key === "rescue") {
+        if (scores.promise >= 1) return "Promise";
+        if (scores.rescue >= 1) return "Deliverance";
+        return "Turn";
+      }
+      if (key === "result") {
+        if (scores.confession >= 1) return "Confession";
+        if (scores.praise >= 1) return "Praise";
+        if (texts.includes("believed")) return "Faith Response";
+        return "Resolution";
+      }
+      return "Resolution";
+    };
+
     return {
       premise: Array.from(premise).filter((id) => lineText.has(id)),
       threat: Array.from(threat).filter((id) => lineText.has(id)),
       rescue: Array.from(rescue).filter((id) => lineText.has(id)),
       result: Array.from(result).filter((id) => lineText.has(id)),
-      lineText
+      lineText,
+      labels: {
+        premise: labelFor("premise"),
+        threat: labelFor("threat"),
+        rescue: labelFor("rescue"),
+        result: labelFor("result")
+      }
     };
   }, [lines, frame, parallels]);
 
@@ -173,12 +267,12 @@ export function StructureFlow({ data }: StructureFlowProps) {
   }, [lines, frameIds, highlightedNodeIds]);
 
   const summaryNodes = useMemo<Node[]>(() => {
-    const labels: Array<{ key: SummaryKey; title: string }> = [
-      { key: "premise", title: "Premise" },
-      { key: "threat", title: "Threat / Problem" },
-      { key: "rescue", title: "Divine Response / Rescue" },
-      { key: "result", title: "Result / Confession" }
-    ];
+      const labels: Array<{ key: SummaryKey; title: string }> = [
+        { key: "premise", title: summaryMap.labels.premise },
+        { key: "threat", title: summaryMap.labels.threat },
+        { key: "rescue", title: summaryMap.labels.rescue },
+        { key: "result", title: summaryMap.labels.result }
+      ];
     return labels.map((item, idx) => {
       const ids = summaryMap[item.key];
       const subtext = ids.length ? ids.join(", ") : "—";
