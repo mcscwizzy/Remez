@@ -107,6 +107,7 @@ class AnalysisResponse(BaseModel):
     structure: StructureResult
 
     overview_summary: str
+    literary_notes: Optional[List[str]] = None
     keywords: List[str] = Field(default_factory=list)
     themes: List[str] = Field(default_factory=list)
 

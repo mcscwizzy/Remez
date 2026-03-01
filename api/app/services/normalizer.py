@@ -328,6 +328,7 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Coerce slightly-wrong LLM JSON into the AnalysisResponse schema.
     """
+    print(f"[remez] literary_notes pre-normalize: {bool(data.get('literary_notes'))}")
     for k in [
         "keywords",
         "themes",
@@ -345,8 +346,14 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
         fallback = data.get("peshat_summary", "")
         data["overview_summary"] = str(fallback)
 
+    if "literary_notes" in data:
+        data["literary_notes"] = [str(x) for x in _ensure_list(data.get("literary_notes"))]
+    else:
+        data.pop("literary_notes", None)
+
     _normalize_key_terms(data)
     _normalize_nt_parallels(data)
     _normalize_structure(data)
 
+    print(f"[remez] literary_notes post-normalize: {bool(data.get('literary_notes'))}")
     return data
