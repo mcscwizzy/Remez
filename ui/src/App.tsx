@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import "./index.css";
-import type { AnalyzeRequest, RemezMode } from "./types";
+import type { AnalyzeRequest } from "./types";
 import type { UiAnalyzeResponse } from "./types/analyze";
 import { analyzePassage } from "./lib/api";
 import { Toggle } from "./components/Toggle";
@@ -20,8 +20,8 @@ function uid() {
 
 export default function App() {
   const [reference, setReference] = useState("Genesis 15:1-6");
+  const [translation, setTranslation] = useState("");
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<RemezMode>("overview");
 
   const [includeChiasm, setIncludeChiasm] = useState(true);
   const [includeHebraicNotes, setIncludeHebraicNotes] = useState(true);
@@ -36,16 +36,20 @@ export default function App() {
   const payload = useMemo<AnalyzeRequest>(
     () => ({
       reference: reference.trim() ? reference.trim() : undefined,
+      translation: translation.trim() ? translation.trim() : undefined,
       text: text.trim() ? text.trim() : undefined,
-      mode,
       includeChiasm,
       includeHebraicNotes,
       includeNTParallels
     }),
-    [reference, text, mode, includeChiasm, includeHebraicNotes, includeNTParallels]
+    [reference, translation, text, includeChiasm, includeHebraicNotes, includeNTParallels]
   );
 
   async function run() {
+    if (!text.trim()) {
+      setError("Paste the passage text to analyze.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -79,7 +83,17 @@ export default function App() {
               <div className="section-title">Input</div>
 
               <label className="block">
-                <div className="text-sm text-gray-600">Reference</div>
+                <div className="text-sm text-gray-600">Paste passage text (required)</div>
+                <textarea
+                  className="mt-1 w-full textarea-field h-40"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Paste the full passage text here"
+                />
+              </label>
+
+              <label className="block">
+                <div className="text-sm text-gray-600">Reference (optional)</div>
                 <input
                   className="mt-1 w-full input-field"
                   value={reference}
@@ -89,25 +103,20 @@ export default function App() {
               </label>
 
               <label className="block">
-                <div className="text-sm text-gray-600">Or paste text</div>
-                <textarea
-                  className="mt-1 w-full textarea-field h-28"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Paste passage text here (optional)"
+                <div className="text-sm text-gray-600">Translation (optional)</div>
+                <input
+                  className="mt-1 w-full input-field"
+                  value={translation}
+                  onChange={(e) => setTranslation(e.target.value)}
+                  placeholder="NIV, ESV, CSB..."
                 />
               </label>
 
-              <label className="block">
-                <div className="text-sm text-gray-600">Mode</div>
-                <select
-                  className="mt-1 w-full select-field"
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value as RemezMode)}
-                >
-                  <option value="overview">Overview</option>
-                </select>
-              </label>
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-white/70 p-3 text-sm text-gray-700">
+                Structure patterns can look different across translations because wording and word order change.
+                Comparing translations can help you see repeated phrases and pivots more clearly. The strongest
+                structural work comes from the Hebrew/Greek text, but you can still learn a lot from good translations.
+              </div>
 
               <div className="grid gap-2">
                 <Toggle
@@ -153,7 +162,8 @@ export default function App() {
                   >
                     <div className="text-sm font-semibold">{h.request.reference ?? "Pasted text"}</div>
                     <div className="text-xs text-gray-600">
-                      {new Date(h.ts).toLocaleString()} • {h.request.mode}
+                      {new Date(h.ts).toLocaleString()}
+                      {h.request.translation ? ` • ${h.request.translation}` : ""}
                       {h.error ? " • error" : h.response ? " • ok" : ""}
                     </div>
                   </button>

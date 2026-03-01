@@ -60,6 +60,8 @@ Interpretive discipline:
 Output rules:
 - Return ONLY valid JSON. No markdown. No commentary. No trailing text.
 - Follow the schema exactly (types matter).
+- Analyze ONLY the provided passage text. Do not assume or retrieve additional verse text.
+- If reference or translation labels are provided, treat them as labels only.
 """
 
 SCHEMA_INSTRUCTIONS = """\
@@ -67,6 +69,7 @@ Return JSON with EXACTLY these keys and types:
 
 {
   "reference": string or null,
+  "translation": string or null,
 
   "structure": {
     "detected": "chiasm" | "parallelism" | "none",
@@ -222,13 +225,19 @@ Guardrails:
 - Prefer ANE covenant/inheritance framing and Israelite worldview assumptions over modern devotional language.
 """
 
-def build_prompt(reference: str | None, text: str | None) -> str:
-    content = reference if reference else text
+def build_prompt(reference: str | None, translation: str | None, text: str | None) -> str:
+    passage = text or ""
+    ref_label = reference or "None"
+    translation_label = translation or "None"
     return f"""{SYSTEM_CONSTITUTION}
 
 {SCHEMA_INSTRUCTIONS}
 
 {MINIMUMS}
 
-Passage: {content}
+Reference label: {ref_label}
+Translation label: {translation_label}
+
+Passage text (analyze this only):
+{passage}
 """

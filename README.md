@@ -38,7 +38,7 @@ All LLM output is treated as a draft and remains fully editable.
 
 ## Core Features (MVP)
 
-- Paste passage text
+- Paste passage text (required)
 - Verse-by-verse summaries
 - Keyword extraction
 - Structural graph (nodes + edges)
@@ -46,6 +46,12 @@ All LLM output is treated as a draft and remains fully editable.
 - Manual editing of keywords and relationships
 
 ---
+
+## Paste-Text-Only (Licensing + Translation Variance)
+
+Remez requires users to paste the passage text themselves. The app does not fetch or supply Bible text in order to avoid licensing issues and to support analysis of any translation or language.
+
+Structural patterns can vary by translation because wording and word order change. Comparing translations often helps reveal repeated phrases and pivots. The strongest structural work comes from the Hebrew/Greek text, but meaningful insights are still possible from good translations.
 
 ## Planned Features
 

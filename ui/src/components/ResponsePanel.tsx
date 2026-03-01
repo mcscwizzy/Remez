@@ -37,7 +37,10 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-lg font-semibold">Output</div>
-          <div className="text-sm text-gray-600">{data.reference}</div>
+          <div className="text-sm text-gray-600">
+            {data.reference || "Pasted text"}
+            {data.translation ? ` • ${data.translation}` : ""}
+          </div>
         </div>
       </div>
 

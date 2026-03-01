@@ -1,9 +1,7 @@
-export type RemezMode = "overview";
-
 export type AnalyzeRequest = {
-  reference?: string;   // e.g. "Genesis 15:1-6"
-  text?: string;        // if user pastes text instead
-  mode?: RemezMode;
+  reference?: string;   // optional label, e.g. "Genesis 15:1-6"
+  translation?: string; // optional translation label, e.g. "NIV"
+  text?: string;        // pasted passage text (required in UI)
   includeChiasm?: boolean;
   includeHebraicNotes?: boolean;
   includeNTParallels?: boolean;
