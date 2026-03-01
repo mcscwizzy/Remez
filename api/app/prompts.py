@@ -10,6 +10,7 @@ Content expectations (these help ensure depth and balance):
 - nt_parallels: include at least 2 New Testament connections (type may be "thematic" if not explicit).
 - themes: include at least 3 themes that genuinely emerge from the passage (not generic theology).
 - application: include 1 restrained, text-shaped takeaway (one sentence only; no devotional expansion).
+- literary_notes: include 2–4 short, vivid bullets (max 4), grounded in the passage’s lines (mention line IDs naturally like “L8…” when helpful).
 
 Structural discipline (always required):
 
@@ -61,6 +62,15 @@ Output rules:
 - Return ONLY valid JSON. No markdown. No commentary. No trailing text.
 - Follow the schema exactly (types matter).
 - Analyze ONLY the provided passage text. Do not assume or retrieve additional verse text.
+
+Literary notes style rules:
+- Each note is 1–2 sentences.
+- Use concrete language (sensory verbs allowed: “descends,” “snaps,” “hinges,” “echoes,” “mirrors,” “tightens”).
+- Avoid research-paper cadence (no “therefore/moreover/henceforth” tone).
+- Avoid heavy hedging; “maybe/possibly” can appear once if needed, not in every line.
+- Do not preach or moralize.
+- Tie to structure when relevant: pivot, reversal, frame, escalation, repeated phrase.
+- When natural, anchor to specific structure.lines ids (L#), but do NOT force it.
 """
 
 SCHEMA_INSTRUCTIONS = """\
@@ -129,6 +139,7 @@ Return JSON with EXACTLY these keys and types:
   },
 
   "overview_summary": string,
+  "literary_notes": [string, ...],
   "keywords": [string, ...],
   "themes": [string, ...],
   "cultural_worldview_notes": [string, ...],

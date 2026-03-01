@@ -54,6 +54,8 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       application: asArray<string>(api.application, [])
     },
 
+    literaryNotes: asArray<string>(api.literary_notes, []),
+
     // reserved for later; backend can start emitting this when ready
     visualizations: (api as any).visualizations,
 

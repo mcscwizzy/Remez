@@ -9,6 +9,7 @@ export interface ApiAnalyzeResponse {
   structure?: ApiStructure;
 
   overview_summary?: string;
+  literary_notes?: string[];
 
   keywords?: string[];
   themes?: string[];
@@ -117,6 +118,7 @@ export interface UiAnalyzeResponse {
   structure: UiStructure;
 
   notes: UiNotes;
+  literaryNotes?: string[];
 
   // Optional visualization payloads for later
   visualizations?: UiVisualizations;

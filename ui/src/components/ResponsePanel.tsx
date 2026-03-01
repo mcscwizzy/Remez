@@ -45,8 +45,23 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
       <Tabs tabs={tabs} active={tab} onChange={setTab as any} />
 
       {isLayerTab(tab) && (
-        <div className="whitespace-pre-wrap leading-relaxed text-sm">
-          {layerText.trim() ? layerText : "No content returned for this section."}
+        <div className="space-y-4">
+          <div className="whitespace-pre-wrap leading-relaxed text-sm">
+            {layerText.trim() ? layerText : "No content returned for this section."}
+          </div>
+          {data.literaryNotes && data.literaryNotes.length > 0 ? (
+            <div className="rounded-xl border border-[color:var(--color-border)] bg-white/70 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <span aria-hidden="true">❦</span>
+                <span>Literary Notes</span>
+              </div>
+              <ul className="mt-2 list-disc pl-5 text-sm leading-relaxed text-gray-700">
+                {data.literaryNotes.map((note, idx) => (
+                  <li key={idx}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       )}
 
