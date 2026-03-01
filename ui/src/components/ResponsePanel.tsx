@@ -9,7 +9,7 @@ function isLayerTab(tab: string): tab is LayerId {
 }
 
 export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
-  const [tab, setTab] = useState<LayerId | "visual" | "chiasm" | "notes" | "raw" | "guide">("overview");
+  const [tab, setTab] = useState<LayerId | "visual" | "chiasm" | "raw" | "guide">("overview");
 
   const tabs = useMemo(
     () => [
@@ -49,17 +49,110 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
           <div className="whitespace-pre-wrap leading-relaxed text-sm">
             {layerText.trim() ? layerText : "No content returned for this section."}
           </div>
-          {data.literaryNotes && data.literaryNotes.length > 0 ? (
+          {data.literary_notes && data.literary_notes.length > 0 ? (
             <div className="rounded-xl border border-[color:var(--color-border)] bg-white/70 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <span aria-hidden="true">❦</span>
                 <span>Literary Notes</span>
               </div>
               <ul className="mt-2 list-disc pl-5 text-sm leading-relaxed text-gray-700">
-                {data.literaryNotes.map((note, idx) => (
+                {data.literary_notes.map((note, idx) => (
                   <li key={idx}>{note}</li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+
+          {data.keywords && data.keywords.length > 0 ? (
+            <div>
+              <div className="font-semibold">Keywords</div>
+              <div className="mt-1 text-gray-700">{data.keywords.join(", ")}</div>
+            </div>
+          ) : null}
+
+          {data.themes && data.themes.length > 0 ? (
+            <div>
+              <div className="font-semibold">Themes</div>
+              <div className="mt-1 text-gray-700">{data.themes.join(", ")}</div>
+            </div>
+          ) : null}
+
+          {data.cultural_worldview_notes && data.cultural_worldview_notes.length > 0 ? (
+            <div>
+              <div className="font-semibold">Cultural / Worldview Notes</div>
+              <ul className="mt-1 list-disc pl-5 text-gray-700">
+                {data.cultural_worldview_notes.map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {data.motifs_and_patterns && data.motifs_and_patterns.length > 0 ? (
+            <div>
+              <div className="font-semibold">Motifs &amp; Patterns</div>
+              <ul className="mt-1 list-disc pl-5 text-gray-700">
+                {data.motifs_and_patterns.map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {data.second_temple_bridge && data.second_temple_bridge.length > 0 ? (
+            <div>
+              <div className="font-semibold">Second Temple Bridge</div>
+              <ul className="mt-1 list-disc pl-5 text-gray-700">
+                {data.second_temple_bridge.map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {data.nt_parallels && data.nt_parallels.length > 0 ? (
+            <div>
+              <div className="font-semibold">NT Parallels</div>
+              <ul className="mt-1 space-y-2">
+                {data.nt_parallels.map((p, i) => (
+                  <li key={i} className="rounded-lg border border-[color:var(--color-border)] bg-white/70 p-3">
+                    <div className="font-medium">{p.reference}</div>
+                    {p.type ? <div className="text-xs text-gray-600">{p.type}</div> : null}
+                    {p.reason ? <div className="text-gray-700 mt-1">{p.reason}</div> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {data.notable_alternatives && data.notable_alternatives.length > 0 ? (
+            <div>
+              <div className="font-semibold">Notable Alternatives</div>
+              <ul className="mt-1 list-disc pl-5 text-gray-700">
+                {data.notable_alternatives.map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {data.key_terms && data.key_terms.length > 0 ? (
+            <div>
+              <div className="font-semibold">Key Terms</div>
+              <div className="mt-2 space-y-2">
+                {data.key_terms.map((t, i) => (
+                  <div key={i} className="rounded-lg border border-[color:var(--color-border)] bg-white/70 p-3">
+                    <div className="font-medium">
+                      {t.term}
+                      {t.language ? <span className="text-gray-600"> ({t.language})</span> : null}
+                    </div>
+                    {t.gloss ? <div className="text-gray-700 mt-1">{t.gloss}</div> : null}
+                    {t.why_it_matters ? (
+                      <div className="text-gray-600 mt-2 whitespace-pre-wrap">{t.why_it_matters}</div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
@@ -149,106 +242,6 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
       )}
 
       {tab === "visual" && <VisualPanel data={data} />}
-
-      {tab === "notes" && (
-        <div className="text-sm space-y-4">
-          <div>
-            <div className="font-semibold">Keywords</div>
-            <div className="mt-1 text-gray-700">{data.notes.keywords.join(", ") || "—"}</div>
-          </div>
-
-          <div>
-            <div className="font-semibold">Themes</div>
-            <div className="mt-1 text-gray-700">{data.notes.themes.join(", ") || "—"}</div>
-          </div>
-
-          <div>
-            <div className="font-semibold">Hebraic worldview notes</div>
-            <ul className="mt-1 list-disc pl-5 text-gray-700">
-              {data.notes.worldview.length ? data.notes.worldview.map((x, i) => <li key={i}>{x}</li>) : <li>—</li>}
-            </ul>
-          </div>
-
-          <div>
-            <div className="font-semibold">Motifs and patterns</div>
-            <ul className="mt-1 list-disc pl-5 text-gray-700">
-              {data.notes.motifs.length ? data.notes.motifs.map((x, i) => <li key={i}>{x}</li>) : <li>—</li>}
-            </ul>
-          </div>
-
-          <div>
-            <div className="font-semibold">Second Temple bridge</div>
-            <ul className="mt-1 list-disc pl-5 text-gray-700">
-              {data.notes.secondTemple.length ? (
-                data.notes.secondTemple.map((x, i) => <li key={i}>{x}</li>)
-              ) : (
-                <li>—</li>
-              )}
-            </ul>
-          </div>
-
-          <div>
-            <div className="font-semibold">Key terms</div>
-            {data.notes.keyTerms.length ? (
-              <div className="mt-2 space-y-2">
-                {data.notes.keyTerms.map((t, i) => (
-                  <div key={i} className="rounded-lg border p-3">
-                    <div className="font-medium">
-                      {t.term}
-                      {t.language ? <span className="text-gray-600"> ({t.language})</span> : null}
-                    </div>
-                    {t.gloss ? <div className="text-gray-700 mt-1">{t.gloss}</div> : null}
-                    {t.why_it_matters ? (
-                      <div className="text-gray-600 mt-2 whitespace-pre-wrap">{t.why_it_matters}</div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-1 text-gray-600">—</div>
-            )}
-          </div>
-
-          <div>
-            <div className="font-semibold">NT parallels</div>
-            <ul className="mt-1 list-disc pl-5 text-gray-700 space-y-1">
-              {data.notes.ntParallels.length ? (
-                data.notes.ntParallels.map((p, i) => (
-                  <li key={i}>
-                    <span className="font-medium">{p.reference}</span>
-                    {p.type ? <span className="text-gray-600"> ({p.type})</span> : null}
-                    {p.reason ? <div className="text-gray-600">{p.reason}</div> : null}
-                  </li>
-                ))
-              ) : (
-                <li>—</li>
-              )}
-            </ul>
-          </div>
-
-          {data.notes.alternatives.length ? (
-            <div>
-              <div className="font-semibold">Notable alternatives</div>
-              <ul className="mt-1 list-disc pl-5 text-gray-700">
-                {data.notes.alternatives.map((x, i) => (
-                  <li key={i}>{x}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {data.notes.application.length ? (
-            <div>
-              <div className="font-semibold">Application</div>
-              <ul className="mt-1 list-disc pl-5 text-gray-700">
-                {data.notes.application.map((x, i) => (
-                  <li key={i}>{x}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      )}
 
       {tab === "raw" && (
         <pre className="text-xs rounded-xl border p-3 overflow-auto bg-gray-50">

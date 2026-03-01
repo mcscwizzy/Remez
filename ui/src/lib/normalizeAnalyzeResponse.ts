@@ -12,11 +12,6 @@ const asString = (v: unknown, fallback = ""): string => {
 export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResponse {
   const structure = api.structure ?? {};
 
-  const worldview =
-    asArray<string>(api.hebraic_worldview_notes).length > 0
-      ? asArray<string>(api.hebraic_worldview_notes)
-      : asArray<string>(api.cultural_worldview_notes);
-
   return {
     layers: {
       overview: { content: asString(api.overview_summary) }
@@ -39,22 +34,15 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       best_chiasm: (structure.best_chiasm as any) ?? null
     },
 
-    notes: {
-      keywords: asArray<string>(api.keywords, []),
-      themes: asArray<string>(api.themes, []),
-
-      worldview,
-      motifs: asArray<string>(api.motifs_and_patterns, []),
-      secondTemple: asArray<string>(api.second_temple_bridge, []),
-
-      keyTerms: asArray(api.key_terms, []),
-      ntParallels: asArray(api.nt_parallels, []),
-
-      alternatives: asArray<string>(api.notable_alternatives, []),
-      application: asArray<string>(api.application, [])
-    },
-
-    literaryNotes: asArray<string>(api.literary_notes, []),
+    literary_notes: asArray<string>(api.literary_notes, []),
+    keywords: asArray<string>(api.keywords, []),
+    themes: asArray<string>(api.themes, []),
+    cultural_worldview_notes: asArray<string>(api.cultural_worldview_notes, []),
+    motifs_and_patterns: asArray<string>(api.motifs_and_patterns, []),
+    second_temple_bridge: asArray<string>(api.second_temple_bridge, []),
+    nt_parallels: asArray(api.nt_parallels, []),
+    notable_alternatives: asArray<string>(api.notable_alternatives, []),
+    key_terms: asArray(api.key_terms, []),
 
     // reserved for later; backend can start emitting this when ready
     visualizations: (api as any).visualizations,

@@ -117,8 +117,15 @@ export interface UiAnalyzeResponse {
 
   structure: UiStructure;
 
-  notes: UiNotes;
-  literaryNotes?: string[];
+  literary_notes?: string[];
+  keywords?: string[];
+  themes?: string[];
+  cultural_worldview_notes?: string[];
+  motifs_and_patterns?: string[];
+  second_temple_bridge?: string[];
+  nt_parallels?: ApiNtParallel[];
+  notable_alternatives?: string[];
+  key_terms?: ApiKeyTerm[];
 
   // Optional visualization payloads for later
   visualizations?: UiVisualizations;
@@ -146,22 +153,6 @@ export interface UiStructureFrame {
   left_id: string;
   right_id: string;
   evidence?: string[];
-}
-
-export interface UiNotes {
-  keywords: string[];
-  themes: string[];
-
-  worldview: string[]; // normalized worldview notes
-  motifs: string[];
-  secondTemple: string[];
-
-  keyTerms: ApiKeyTerm[];
-
-  ntParallels: ApiNtParallel[];
-
-  alternatives: string[];
-  application: string[];
 }
 
 export interface UiVisualizations {
