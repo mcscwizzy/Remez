@@ -157,24 +157,24 @@
     background: rgba(255, 255, 255, 0.8);
   }
 
-  .cluster-node {
-    background: rgba(246, 241, 231, 0.65);
-    border: 1px dashed rgba(91, 44, 44, 0.4);
+  .summary-node {
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
-    padding: 10px 12px;
-    color: var(--color-ink);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+    padding: 8px 10px;
+    text-align: center;
+    box-shadow: var(--shadow-soft);
   }
 
-  .cluster-node-label {
+  .summary-node-title {
     font-size: 0.75rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--color-ink-muted);
   }
 
-  .cluster-node-summary {
-    font-size: 0.75rem;
+  .summary-node-subtext {
+    font-size: 0.7rem;
     color: var(--color-ink);
     margin-top: 4px;
   }
