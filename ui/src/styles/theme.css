@@ -194,4 +194,40 @@
     color: var(--color-ink);
     margin-top: 4px;
   }
+
+  .flowchart-node {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--color-ink);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .flowchart-node-diamond {
+    border-radius: 6px;
+    transform: rotate(45deg);
+  }
+
+  .flowchart-node-diamond > * {
+    transform: rotate(-45deg);
+  }
+
+  .flowchart-node-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  .flowchart-node-range {
+    font-size: 0.7rem;
+    color: var(--color-ink-muted);
+    margin-top: 2px;
+  }
+
+  .flowchart-node-excerpt {
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--color-ink);
+  }
 }

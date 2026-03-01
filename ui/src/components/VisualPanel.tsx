@@ -2,8 +2,9 @@ import { useState } from "react";
 import type { UiAnalyzeResponse } from "../types/analyze";
 import { StructureFlow } from "./StructureFlow";
 import { ChiasmView } from "./ChiasmView";
+import { FlowchartView } from "./FlowchartView";
 
-type ViewMode = "structure" | "chiasm";
+type ViewMode = "structure" | "flowchart" | "chiasm";
 
 export function VisualPanel({ data }: { data: UiAnalyzeResponse }) {
   const [view, setView] = useState<ViewMode>("structure");
@@ -34,6 +35,15 @@ export function VisualPanel({ data }: { data: UiAnalyzeResponse }) {
         </button>
         <button
           type="button"
+          onClick={() => setView("flowchart")}
+          className={`rounded-lg border px-3 py-1 text-sm ${
+            view === "flowchart" ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300"
+          }`}
+        >
+          Flowchart
+        </button>
+        <button
+          type="button"
           onClick={() => setView("chiasm")}
           className={`rounded-lg border px-3 py-1 text-sm ${
             view === "chiasm" ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300"
@@ -43,7 +53,9 @@ export function VisualPanel({ data }: { data: UiAnalyzeResponse }) {
         </button>
       </div>
 
-      {view === "structure" ? <StructureFlow data={data} /> : <ChiasmView data={data} />}
+      {view === "structure" && <StructureFlow data={data} />}
+      {view === "flowchart" && <FlowchartView data={data} />}
+      {view === "chiasm" && <ChiasmView data={data} />}
     </div>
   );
 }
