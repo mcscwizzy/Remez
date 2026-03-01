@@ -199,18 +199,18 @@
     background: rgba(255, 255, 255, 0.72);
     border: 1px solid var(--color-border);
     border-radius: 12px;
-    padding: 12px 14px;
+    padding: 10px 12px;
     color: var(--color-ink);
     box-shadow: var(--shadow-soft);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
 
   .flowchart-node-diamond {
-    border-radius: 6px;
-    transform: rotate(45deg);
-  }
-
-  .flowchart-node-diamond > * {
-    transform: rotate(-45deg);
+    border-radius: 10px;
+    border-style: solid;
   }
 
   .flowchart-node-title {
@@ -229,5 +229,77 @@
     margin-top: 6px;
     font-size: 0.7rem;
     color: var(--color-ink);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .flowchart-layout {
+    display: flex;
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .flowchart-canvas {
+    flex: 1 1 auto;
+    min-height: 640px;
+  }
+
+  .flowchart-panel {
+    width: 280px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--color-ink);
+    box-shadow: var(--shadow-soft);
+    font-size: 0.85rem;
+  }
+
+  .flowchart-panel-empty {
+    color: var(--color-ink-muted);
+    font-size: 0.8rem;
+  }
+
+  .flowchart-panel-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .flowchart-panel-range {
+    margin-top: 2px;
+    color: var(--color-ink-muted);
+    font-size: 0.75rem;
+  }
+
+  .flowchart-panel-anchors {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--color-ink-muted);
+  }
+
+  .flowchart-panel-lines {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .flowchart-panel-line {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.4;
+  }
+
+  .flowchart-panel-line-id {
+    font-weight: 600;
+    color: var(--color-ink-muted);
+    min-width: 28px;
+  }
+
+  .flowchart-panel-line-text {
+    flex: 1 1 auto;
   }
 }
