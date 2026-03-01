@@ -302,4 +302,131 @@
   .flowchart-panel-line-text {
     flex: 1 1 auto;
   }
+
+  .narrative-layout {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  .narrative-column {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .narrative-item {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .narrative-node {
+    width: 100%;
+    max-width: 680px;
+    min-height: 120px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: var(--shadow-soft);
+    padding: 14px 16px;
+    text-align: left;
+    color: var(--color-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .narrative-node-section {
+    background: rgba(255, 248, 227, 0.9);
+    border-width: 2px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .narrative-node-action {
+    background: rgba(255, 255, 255, 0.82);
+  }
+
+  .narrative-node-evaluation {
+    border-color: var(--color-accent);
+    background: rgba(253, 248, 235, 0.9);
+  }
+
+  .narrative-node-closure {
+    max-width: 520px;
+    border-style: dashed;
+  }
+
+  .narrative-node-range {
+    font-size: 0.75rem;
+    color: var(--color-ink-muted);
+  }
+
+  .narrative-node-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .narrative-arrow {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: var(--color-ink-muted);
+  }
+
+  .narrative-panel {
+    width: 280px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--color-ink);
+    box-shadow: var(--shadow-soft);
+    font-size: 0.85rem;
+  }
+
+  .narrative-panel-empty {
+    color: var(--color-ink-muted);
+    font-size: 0.8rem;
+  }
+
+  .narrative-panel-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .narrative-panel-lines {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .narrative-panel-line {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.4;
+  }
+
+  .narrative-panel-line-id {
+    font-weight: 600;
+    color: var(--color-ink-muted);
+    min-width: 28px;
+  }
+
+  .narrative-panel-line-text {
+    flex: 1 1 auto;
+  }
 }

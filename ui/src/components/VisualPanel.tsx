@@ -3,8 +3,9 @@ import type { UiAnalyzeResponse } from "../types/analyze";
 import { StructureFlow } from "./StructureFlow";
 import { ChiasmView } from "./ChiasmView";
 import { FlowchartView } from "./FlowchartView";
+import { NarrativeFlow } from "./NarrativeFlow";
 
-type ViewMode = "structure" | "flowchart" | "chiasm";
+type ViewMode = "structure" | "flowchart" | "narrative" | "chiasm";
 
 export function VisualPanel({ data }: { data: UiAnalyzeResponse }) {
   const [view, setView] = useState<ViewMode>("structure");
@@ -44,6 +45,15 @@ export function VisualPanel({ data }: { data: UiAnalyzeResponse }) {
         </button>
         <button
           type="button"
+          onClick={() => setView("narrative")}
+          className={`rounded-lg border px-3 py-1 text-sm ${
+            view === "narrative" ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300"
+          }`}
+        >
+          Narrative Flow
+        </button>
+        <button
+          type="button"
           onClick={() => setView("chiasm")}
           className={`rounded-lg border px-3 py-1 text-sm ${
             view === "chiasm" ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300"
@@ -55,6 +65,7 @@ export function VisualPanel({ data }: { data: UiAnalyzeResponse }) {
 
       {view === "structure" && <StructureFlow data={data} />}
       {view === "flowchart" && <FlowchartView data={data} />}
+      {view === "narrative" && <NarrativeFlow data={data} />}
       {view === "chiasm" && <ChiasmView data={data} />}
     </div>
   );
