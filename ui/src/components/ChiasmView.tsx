@@ -15,6 +15,8 @@ type Selection = {
   isPivot?: boolean;
 };
 
+const hasPivot = (pivotIds: string[]) => pivotIds.length > 0;
+
 export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
   const { structure } = data;
   const parsed = useMemo(() => parseBestChiasm(structure.best_chiasm), [structure.best_chiasm]);
@@ -84,20 +86,30 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
     }
   };
 
-  if (structure.detected !== "chiasm" && !activeCandidate) {
-    return <div className="text-sm text-gray-600">No chiasm detected for this passage.</div>;
+  if (structure.detected !== "chiasm" || !structure.best_chiasm) {
+    if (!(activeCandidate && hasPivot(activeCandidate.pivotIds))) {
+      return (
+        <div className="text-sm text-gray-600">
+          No chiasm detected for this passage. Detected structure: {structure.detected || "unknown"}. This passage may
+          use parallelism and/or inclusio instead.
+        </div>
+      );
+    }
   }
 
-  if (structure.detected === "chiasm" && !showDetectedChiasm) {
+  if (structure.detected === "chiasm" && (!showDetectedChiasm || !hasPivot(layout?.pivotIds ?? []))) {
     return (
-      <div className="text-sm text-gray-600">
-        Chiasm data incomplete. {parsed.issues.length ? parsed.issues.join(" ") : ""}
-      </div>
+      <div className="text-sm text-gray-600">Chiasm data incomplete (missing pivot).</div>
     );
   }
 
   if (!activeLayout) {
-    return <div className="text-sm text-gray-600">No chiasm detected for this passage.</div>;
+    return (
+      <div className="text-sm text-gray-600">
+        No chiasm detected for this passage. Detected structure: {structure.detected || "unknown"}. This passage may
+        use parallelism and/or inclusio instead.
+      </div>
+    );
   }
 
   // Dev note: Genesis 9:6 should yield a low-confidence micro-chiasm candidate.
@@ -186,9 +198,12 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
 
         <div className="flex justify-center">
           <div
-            className="w-full max-w-2xl"
+            className="w-full max-w-2xl border border-amber-200 bg-amber-50/70 rounded-xl p-3"
             style={{ opacity: selectedLineIds.size && !selection.isPivot ? 0.4 : 1 }}
           >
+            <div className="text-xs uppercase tracking-[0.2em] text-amber-900/80 mb-2 text-center">
+              Center / Pivot (main emphasis)
+            </div>
             <Cell
               ids={pivotIds}
               lineText={lineText}
