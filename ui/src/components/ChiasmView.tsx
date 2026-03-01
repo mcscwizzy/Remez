@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { UiAnalyzeResponse } from "../types/analyze";
 import { parseBestChiasm, parseChiasmCandidates } from "../lib/structureLayout";
-import { exportSvgFromContainer } from "../lib/svgExport";
+import { toPng } from "html-to-image";
 
 const SNIPPET_LIMIT = 80;
 
@@ -64,16 +64,23 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
     return { anchorType, evidenceList, why };
   }, [selectedPair, relatedParallels]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!exportRef.current) {
-      setExportError("Rendered SVG not found.");
-      window.alert("Rendered SVG not found.");
+      setExportError("Rendered diagram not found.");
+      window.alert("Rendered diagram not found.");
       return;
     }
     setExportError(null);
-    const result = exportSvgFromContainer(exportRef.current, "remez-structure.svg");
-    if (!result.ok) {
-      setExportError(result.error ?? "Failed to export SVG.");
+    try {
+      const safeRef = data.reference ? data.reference.replace(/[^A-Za-z0-9]+/g, "_") : "visual";
+      const filename = `remez-${safeRef}.png`;
+      const dataUrl = await toPng(exportRef.current, { cacheBust: true, backgroundColor: "#ffffff" });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename;
+      link.click();
+    } catch (err: any) {
+      setExportError(err?.message ?? "Failed to export PNG.");
     }
   };
 
@@ -128,7 +135,7 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
             onClick={handleExport}
             className="rounded-lg border px-3 py-1 text-sm"
           >
-            Download SVG
+            Download PNG
           </button>
         </div>
       </div>

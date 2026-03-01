@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import ReactFlow, { Background, Controls, type Edge, type Node } from "reactflow";
 import type { UiAnalyzeResponse } from "../types/analyze";
 import "reactflow/dist/style.css";
-import { exportSvgFromContainer } from "../lib/svgExport";
+import { toPng } from "html-to-image";
 
 const X_POSITION = 250;
 const Y_SPACING = 120;
@@ -167,21 +167,28 @@ export function StructureFlow({ data }: StructureFlowProps) {
           <div className="text-sm text-gray-600">Structure View</div>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (!exportRef.current) {
-                setExportError("Rendered SVG not found.");
-                window.alert("Rendered SVG not found.");
+                setExportError("Rendered diagram not found.");
+                window.alert("Rendered diagram not found.");
                 return;
               }
               setExportError(null);
-              const result = exportSvgFromContainer(exportRef.current, "remez-structure.svg");
-              if (!result.ok) {
-                setExportError(result.error ?? "Failed to export SVG.");
+              try {
+                const safeRef = data.reference ? data.reference.replace(/[^A-Za-z0-9]+/g, "_") : "visual";
+                const filename = `remez-${safeRef}.png`;
+                const dataUrl = await toPng(exportRef.current, { cacheBust: true, backgroundColor: "#ffffff" });
+                const link = document.createElement("a");
+                link.href = dataUrl;
+                link.download = filename;
+                link.click();
+              } catch (err: any) {
+                setExportError(err?.message ?? "Failed to export PNG.");
               }
             }}
             className="rounded-lg border px-3 py-1 text-sm"
           >
-            Download SVG
+            Download PNG
           </button>
         </div>
         {exportError ? <div className="px-4 py-2 text-sm text-red-600">{exportError}</div> : null}
