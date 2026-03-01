@@ -20,8 +20,6 @@ function uid() {
 
 export default function App() {
   const [showGuideBanner, setShowGuideBanner] = useState(false);
-  const [reference, setReference] = useState("Genesis 15:1-6");
-  const [translation, setTranslation] = useState("");
   const [text, setText] = useState("");
 
   const [includeChiasm, setIncludeChiasm] = useState(true);
@@ -36,14 +34,12 @@ export default function App() {
 
   const payload = useMemo<AnalyzeRequest>(
     () => ({
-      reference: reference.trim() ? reference.trim() : undefined,
-      translation: translation.trim() ? translation.trim() : undefined,
       text: text.trim() ? text.trim() : undefined,
       includeChiasm,
       includeHebraicNotes,
       includeNTParallels
     }),
-    [reference, translation, text, includeChiasm, includeHebraicNotes, includeNTParallels]
+    [text, includeChiasm, includeHebraicNotes, includeNTParallels]
   );
 
   useEffect(() => {
@@ -57,7 +53,7 @@ export default function App() {
 
   async function run() {
     if (!text.trim()) {
-      setError("Paste the passage text to analyze.");
+      setError("Paste passage text to analyze.");
       return;
     }
     setLoading(true);
@@ -110,30 +106,10 @@ export default function App() {
               <label className="block">
                 <div className="text-sm text-gray-600">Paste passage text (required)</div>
                 <textarea
-                  className="mt-1 w-full textarea-field h-40"
+                  className="mt-1 w-full textarea-field h-56"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Paste the full passage text here"
-                />
-              </label>
-
-              <label className="block">
-                <div className="text-sm text-gray-600">Reference (optional)</div>
-                <input
-                  className="mt-1 w-full input-field"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  placeholder="Genesis 15:1-6"
-                />
-              </label>
-
-              <label className="block">
-                <div className="text-sm text-gray-600">Translation (optional)</div>
-                <input
-                  className="mt-1 w-full input-field"
-                  value={translation}
-                  onChange={(e) => setTranslation(e.target.value)}
-                  placeholder="NIV, ESV, CSB..."
                 />
               </label>
 
@@ -185,10 +161,9 @@ export default function App() {
                     onClick={() => setCurrent(h.response ?? null)}
                     title="Click to load output"
                   >
-                    <div className="text-sm font-semibold">{h.request.reference ?? "Pasted text"}</div>
+                    <div className="text-sm font-semibold">Pasted text</div>
                     <div className="text-xs text-gray-600">
                       {new Date(h.ts).toLocaleString()}
-                      {h.request.translation ? ` • ${h.request.translation}` : ""}
                       {h.error ? " • error" : h.response ? " • ok" : ""}
                     </div>
                   </button>

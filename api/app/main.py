@@ -54,9 +54,9 @@ def _too_empty(p: dict) -> bool:
 
 async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse:
     if not req.text or not req.text.strip():
-        raise HTTPException(status_code=400, detail="Paste the passage text to analyze.")
+        raise HTTPException(status_code=400, detail="Passage text is required.")
 
-    prompt = build_prompt(req.reference, req.translation, req.text)
+    prompt = build_prompt(req.text)
 
     raw_response = await call_azure_foundry(prompt)
 
@@ -74,11 +74,6 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse:
             )
             raw_response = await call_azure_foundry(prompt2)
             parsed = normalize_llm_output(json.loads(raw_response))
-
-        if req.reference:
-            parsed["reference"] = req.reference
-        if req.translation:
-            parsed["translation"] = req.translation
 
         return AnalysisResponse(**parsed)
 

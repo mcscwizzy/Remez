@@ -5,9 +5,6 @@ export type ConfidenceLabel = "low" | "medium" | "high" | string;
 export type LayerId = "overview";
 
 export interface ApiAnalyzeResponse {
-  reference?: string;
-  translation?: string;
-
   // Current backend fields (based on your sample)
   structure?: ApiStructure;
 
@@ -115,9 +112,6 @@ export interface ApiNtParallel {
 // ------------------------------
 
 export interface UiAnalyzeResponse {
-  reference: string;
-  translation?: string;
-
   layers: Record<LayerId, { content: string }>;
 
   structure: UiStructure;

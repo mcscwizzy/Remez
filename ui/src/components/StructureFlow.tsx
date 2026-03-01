@@ -401,8 +401,7 @@ export function StructureFlow({ data }: StructureFlowProps) {
               }
               setExportError(null);
               try {
-                const safeRef = data.reference ? data.reference.replace(/[^A-Za-z0-9]+/g, "_") : "visual";
-                const filename = `remez-${safeRef}.png`;
+                const filename = "remez-visual.png";
                 const dataUrl = await toPng(exportRef.current, { cacheBust: true, backgroundColor: "#ffffff" });
                 const link = document.createElement("a");
                 link.href = dataUrl;

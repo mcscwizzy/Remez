@@ -11,17 +11,11 @@ export function GuidePanel() {
       </p>
 
       <p>
-        <strong>Step 2 — (Optional) Add a reference label.</strong>
-        <br />
-        This is just for your clarity (e.g., “Psalm 124 – CSB”). It does not change the analysis.
+        <strong>Step 2 — Click Analyze.</strong>
       </p>
 
       <p>
-        <strong>Step 3 — Click Analyze.</strong>
-      </p>
-
-      <p>
-        <strong>Step 4 — Read in this order:</strong>
+        <strong>Step 3 — Read in this order:</strong>
       </p>
       <ul>
         <li>Overview (summary and themes)</li>
@@ -30,7 +24,7 @@ export function GuidePanel() {
       </ul>
 
       <p>
-        <strong>Step 5 — Compare translations.</strong>
+        <strong>Step 4 — Compare translations.</strong>
         <br />
         Structure can look different across translations because wording and word order change. Comparing translations
         often helps repeated phrases and pivots become clearer.

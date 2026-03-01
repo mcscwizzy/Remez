@@ -5,16 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class AnalyzeRequest(BaseModel):
-    reference: Optional[str] = Field(
-        default=None,
-        description="Bible reference like 'Genesis 15:1-6'",
-    )
-    translation: Optional[str] = Field(
-        default=None,
-        description="Optional translation/version label supplied by the user",
-    )
-    text: Optional[str] = Field(
-        default=None,
+    text: str = Field(
         description="Raw passage text supplied by the user",
     )
     profile: Literal["heiser"] = Field(default="heiser")
@@ -113,9 +104,6 @@ class StructureResult(BaseModel):
 # -------- Main Analysis Response --------
 
 class AnalysisResponse(BaseModel):
-    reference: Optional[str] = None
-    translation: Optional[str] = None
-
     structure: StructureResult
 
     overview_summary: str

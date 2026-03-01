@@ -341,9 +341,6 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
 
     data["confidence"] = _as_confidence(data.get("confidence"))
 
-    if "reference" not in data:
-        data["reference"] = None
-
     if not isinstance(data.get("overview_summary"), str):
         fallback = data.get("peshat_summary", "")
         data["overview_summary"] = str(fallback)

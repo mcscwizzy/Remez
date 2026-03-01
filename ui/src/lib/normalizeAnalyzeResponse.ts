@@ -10,9 +10,6 @@ const asString = (v: unknown, fallback = ""): string => {
 };
 
 export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResponse {
-  const reference = asString(api.reference, "");
-  const translation = asString(api.translation, "");
-
   const structure = api.structure ?? {};
 
   const worldview =
@@ -21,9 +18,6 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       : asArray<string>(api.cultural_worldview_notes);
 
   return {
-    reference,
-    translation: translation || undefined,
-
     layers: {
       overview: { content: asString(api.overview_summary) }
     },
