@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { UiAnalyzeResponse } from "../types/analyze";
-import { parseBestChiasm } from "../lib/structureLayout";
+import { parseBestChiasm, parseChiasmCandidates } from "../lib/structureLayout";
 import { toSvg } from "html-to-image";
 
 const SNIPPET_LIMIT = 80;
@@ -18,6 +18,8 @@ type Selection = {
 export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
   const { structure } = data;
   const parsed = useMemo(() => parseBestChiasm(structure.best_chiasm), [structure.best_chiasm]);
+  const candidates = useMemo(() => parseChiasmCandidates(structure.chiasm_candidates), [structure.chiasm_candidates]);
+  const [candidateId, setCandidateId] = useState<string | null>(null);
 
   const [selection, setSelection] = useState<Selection>({});
   const [exportError, setExportError] = useState<string | null>(null);
@@ -30,15 +32,23 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
   }, [structure.lines]);
 
   const layout = parsed.layout;
-  const showChiasm = structure.detected === "chiasm" && layout;
+  const activeCandidate = useMemo(() => {
+    if (!candidates.length) return null;
+    if (!candidateId) return candidates[0];
+    return candidates.find((c) => c.id === candidateId) ?? candidates[0];
+  }, [candidates, candidateId]);
 
-  const selectedPair = layout && selection.pairIndex !== undefined ? layout.pairs[selection.pairIndex] : null;
+  const showDetectedChiasm = structure.detected === "chiasm" && layout;
+  const showCandidate = !showDetectedChiasm && activeCandidate;
+
+  const activeLayout = showDetectedChiasm ? layout : activeCandidate;
+  const selectedPair = activeLayout && selection.pairIndex !== undefined ? activeLayout.pairs[selection.pairIndex] : null;
   const selectedLineIds = useMemo(() => {
-    if (!layout) return new Set<string>();
-    if (selection.isPivot) return new Set(layout.pivotIds);
+    if (!activeLayout) return new Set<string>();
+    if (selection.isPivot) return new Set(activeLayout.pivotIds);
     if (selectedPair) return new Set([...selectedPair.leftIds, ...selectedPair.rightIds]);
     return new Set<string>();
-  }, [layout, selection.isPivot, selectedPair]);
+  }, [activeLayout, selection.isPivot, selectedPair]);
 
   const relatedParallels = useMemo(() => {
     if (!selectedPair) return [];
@@ -68,11 +78,11 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
     }
   };
 
-  if (structure.detected !== "chiasm" || !structure.best_chiasm) {
+  if (structure.detected !== "chiasm" && !activeCandidate) {
     return <div className="text-sm text-gray-600">No chiasm detected for this passage.</div>;
   }
 
-  if (!showChiasm) {
+  if (structure.detected === "chiasm" && !showDetectedChiasm) {
     return (
       <div className="text-sm text-gray-600">
         Chiasm data incomplete. {parsed.issues.length ? parsed.issues.join(" ") : ""}
@@ -80,25 +90,64 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
     );
   }
 
-  const levels = layout.pairs;
-  const pivotIds = layout.pivotIds;
+  if (!activeLayout) {
+    return <div className="text-sm text-gray-600">No chiasm detected for this passage.</div>;
+  }
+
+  // Dev note: Genesis 9:6 should yield a low-confidence micro-chiasm candidate.
+  // Philippians 2:6–11 should yield at least one candidate and may detect a full chiasm.
+
+  const levels = activeLayout.pairs;
+  const pivotIds = activeLayout.pivotIds;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
-          {layout.confidence ? `Confidence: ${layout.confidence}` : "Chiastic structure"}
+          {showDetectedChiasm
+            ? layout?.confidence
+              ? `Confidence: ${layout.confidence}`
+              : "Chiastic structure"
+            : `Possible chiasm candidate${activeCandidate?.confidence ? ` (${activeCandidate.confidence})` : ""}`}
         </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          className="rounded-lg border px-3 py-1 text-sm"
-        >
-          Download SVG
-        </button>
+        <div className="flex items-center gap-2">
+          {showCandidate && candidates.length > 1 ? (
+            <select
+              className="rounded-lg border px-2 py-1 text-sm"
+              value={activeCandidate?.id}
+              onChange={(e) => setCandidateId(e.target.value)}
+            >
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.id}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleExport}
+            className="rounded-lg border px-3 py-1 text-sm"
+          >
+            Download SVG
+          </button>
+        </div>
       </div>
 
       {exportError ? <div className="text-sm text-red-600">{exportError}</div> : null}
+
+      {showCandidate ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Possible chiasm candidate (low confidence). Review anchors before treating as definitive.
+          {activeCandidate?.weaknesses?.length ? (
+            <ul className="mt-2 list-disc pl-5 text-amber-800">
+              {activeCandidate.weaknesses.map((w, idx) => (
+                <li key={idx}>{w}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       <div ref={exportRef} className="rounded-xl border bg-white p-4 space-y-3">
         {levels.map((pair, idx) => {

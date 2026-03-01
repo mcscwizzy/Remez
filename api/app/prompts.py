@@ -16,7 +16,7 @@ Structural discipline (always required):
 - Begin with structure analysis before interpretation.
 - Always segment the passage into structure.lines using ids L1..Ln.
 - If structure.detected == "parallelism", structure.parallels MUST contain at least 2 meaningful groups.
-- structure.chiasm_candidates: produce 0–2 candidates maximum.
+- structure.chiasm_candidates: produce 0–2 candidates maximum (see candidate schema below).
 - If structure.detected != "chiasm", structure.best_chiasm MUST be null.
 
 Clarity safeguards:
@@ -94,31 +94,19 @@ Return JSON with EXACTLY these keys and types:
 
     "chiasm_candidates": [
       {
-        "id": string,
-        "pattern": string,
-
-        "pivot": {"line_id": string, "why": string},
-
+        "id": "C1" | "C2",
+        "confidence": "low" | "medium" | "high",
+        "pivot_ids": [string, ...],
         "pairs": [
           {
-            "label": string,
             "left_ids": [string, ...],
             "right_ids": [string, ...],
             "anchor_type": "lexical" | "formula" | "keyword" | "inversion" | "thematic",
             "evidence": [string, ...]
           }
         ],
-
-        "score_breakdown": {
-          "pair_count_strength": number,
-          "lexical_anchor_strength": number,
-          "semantic_anchor_strength": number,
-          "pivot_strength": number,
-          "noise_penalty": number,
-          "total": number
-        },
-
-        "notes": [string, ...]
+        "rationale": string,
+        "weaknesses": [string, ...]
       }
     ],
 
@@ -176,32 +164,38 @@ Structure detection rules (hard):
 - Each parallels group MUST reference valid line_ids from structure.lines.
 - Keep groups meaningful (avoid listing every line). Use groups that show repetition or conceptual parallels.
 
-3) Candidate generation:
-- Produce at most 2 chiasm_candidates.
-- If no candidate meets threshold, detected MUST be "parallelism" or "none" and best_chiasm MUST be null.
+3) Chiastic attempt step (required):
+- After structure.lines and structure.parallels are built, you MUST attempt a chiastic parse.
+- If ANY plausible inverted symmetry exists, produce 1–2 chiasm_candidates (low/medium confidence allowed).
+- Candidates can be tentative and MUST include weaknesses when confidence is low.
+- If no plausible inversion exists, return an empty array.
 
-4) Pivot exclusivity:
+4) Micro-chiasm allowance (short units):
+- For short units (2–6 lines), allow micro-chiasm candidates (ABBA or ABCBA) when clear inversion exists.
+- Clear inversion requires lexical repetition or reversed roles (actor/object), even if anchors are weak.
+- These should usually be low confidence with explicit weaknesses.
+
+5) Pivot exclusivity:
 - The pivot line_id MUST NOT appear in any pair.left_ids or pair.right_ids.
 
-5) Pair ID discipline:
+6) Pair ID discipline:
 - left_ids and right_ids MUST ONLY contain valid line IDs present in structure.lines (e.g., "L3").
 - Do NOT use ranges like "L3-L4". Use arrays: ["L3","L4"].
 
-6) No recycling lines:
+7) No recycling lines:
 - A given line ID may appear in at most ONE mirrored pair (across all pairs in a candidate).
 
-7) Frame vs pairs:
+8) Frame vs pairs:
 - If the passage has opening/closing framing (inclusio), put it in structure.frame.
 - Do NOT count structure.frame toward the mirrored pair count.
 
-8) Validation threshold for detected="chiasm":
-- Require at least 3 mirrored pairs (A/A’, B/B’, C/C’) NOT counting frame.
-- Each pair MUST have at least 1 evidence anchor and an anchor_type.
-- At least 2 pairs MUST have anchor_type in {"lexical","formula","keyword"} (not all thematic).
+9) Validation threshold for detected="chiasm" (strict, conservative):
+- Require at least 2 mirrored pair-levels (A/A’, B/B’) NOT counting frame.
+- At least 2 independent anchors must be lexical/formula (not all thematic).
 - Pivot MUST be justified as hinge/climax/turning point (not vibes).
 - Symmetry must mirror outward from pivot; penalize excessive skipping.
 
-9) Anti-hallucination gates:
+10) Anti-hallucination gates:
 - Do not “create” symmetry via loose synonyms.
 - If most anchors are thematic, classify as "parallelism" instead of "chiasm".
 - Default to "none" if uncertain; "parallelism" if repetition exists without mirrored pivot.

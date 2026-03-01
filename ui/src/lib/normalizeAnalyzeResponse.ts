@@ -40,7 +40,7 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       cautions: asArray<string>(structure.cautions, []),
 
       chiasm_candidates: asArray(structure.chiasm_candidates, []),
-      best_chiasm: (structure.best_chiasm as unknown) ?? null
+      best_chiasm: (structure.best_chiasm as any) ?? null
     },
 
     notes: {

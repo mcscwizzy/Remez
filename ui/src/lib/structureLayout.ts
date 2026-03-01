@@ -30,18 +30,11 @@ const asArray = (value: unknown): string[] => {
 
 const asString = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
 
-export function parseBestChiasm(best: UiAnalyzeResponse["structure"]["best_chiasm"]): ChiasmParseResult {
-  if (!best || typeof best !== "object") {
-    return { layout: null, issues: ["best_chiasm missing or not an object"] };
-  }
-
-  const record = best as Record<string, unknown>;
+const parsePairs = (pairsRaw: unknown): { pairs: ChiasmPair[]; issues: string[] } => {
   const issues: string[] = [];
-
-  const pairsRaw = record.pairs;
   const pairsArray = Array.isArray(pairsRaw) ? pairsRaw : [];
   if (!pairsArray.length) {
-    issues.push("best_chiasm.pairs missing or empty");
+    issues.push("pairs missing or empty");
   }
 
   const pairs: ChiasmPair[] = [];
@@ -62,21 +55,36 @@ export function parseBestChiasm(best: UiAnalyzeResponse["structure"]["best_chias
   });
 
   if (!pairs.length) {
-    issues.push("No valid pairs in best_chiasm.pairs");
+    issues.push("No valid pairs");
   }
 
-  const pivotIds = (() => {
-    if (record.pivot_ids || record.pivotIds) return asArray(record.pivot_ids ?? record.pivotIds);
-    const pivot = record.pivot;
-    if (pivot && typeof pivot === "object") {
-      const pivotRecord = pivot as Record<string, unknown>;
-      return asArray(pivotRecord.line_id ?? pivotRecord.lineId);
-    }
-    return [];
-  })();
+  return { pairs, issues };
+};
 
+const parsePivotIds = (record: Record<string, unknown>): string[] => {
+  if (record.pivot_ids || record.pivotIds) return asArray(record.pivot_ids ?? record.pivotIds);
+  const pivot = record.pivot;
+  if (pivot && typeof pivot === "object") {
+    const pivotRecord = pivot as Record<string, unknown>;
+    return asArray(pivotRecord.line_id ?? pivotRecord.lineId);
+  }
+  return [];
+};
+
+export function parseBestChiasm(best: UiAnalyzeResponse["structure"]["best_chiasm"]): ChiasmParseResult {
+  if (!best || typeof best !== "object") {
+    return { layout: null, issues: ["best_chiasm missing or not an object"] };
+  }
+
+  const record = best as Record<string, unknown>;
+  const issues: string[] = [];
+
+  const { pairs, issues: pairIssues } = parsePairs(record.pairs);
+  issues.push(...pairIssues.map((i) => `best_chiasm.${i}`));
+
+  const pivotIds = parsePivotIds(record);
   if (!pivotIds.length) {
-    issues.push("Pivot line ids missing");
+    issues.push("best_chiasm pivot line ids missing");
   }
 
   const confidence = asString(record.confidence);
@@ -93,4 +101,32 @@ export function parseBestChiasm(best: UiAnalyzeResponse["structure"]["best_chias
     },
     issues
   };
+}
+
+export function parseChiasmCandidates(
+  candidates: UiAnalyzeResponse["structure"]["chiasm_candidates"]
+): Array<ChiasmLayout & { id: string; rationale?: string; weaknesses?: string[] }> {
+  if (!Array.isArray(candidates)) return [];
+  const result: Array<ChiasmLayout & { id: string; rationale?: string; weaknesses?: string[] }> = [];
+
+  candidates.forEach((candidate) => {
+    if (!candidate || typeof candidate !== "object") return;
+    const record = candidate as unknown as Record<string, unknown>;
+    const id = asString(record.id);
+    const { pairs } = parsePairs(record.pairs);
+    const pivotIds = parsePivotIds(record);
+    if (!id || !pairs.length || !pivotIds.length) return;
+    result.push({
+      id,
+      pairs,
+      pivotIds,
+      confidence: asString(record.confidence),
+      rationale: asString(record.rationale),
+      weaknesses: Array.isArray(record.weaknesses)
+        ? (record.weaknesses.filter((w) => typeof w === "string") as string[])
+        : undefined
+    });
+  });
+
+  return result;
 }

@@ -44,10 +44,42 @@ export interface ApiStructure {
 
   parallels?: ApiParallel[];
 
-  chiasm_candidates?: unknown[];
-  best_chiasm?: unknown;
+  chiasm_candidates?: ApiChiasmCandidate[];
+  best_chiasm?: ApiBestChiasm | null;
 
   cautions?: string[];
+}
+
+export interface ApiChiasmCandidate {
+  id: string;
+  confidence?: ConfidenceLabel;
+  pivot_ids?: string[] | string;
+  pairs?: Array<{
+    left_ids?: string[] | string;
+    right_ids?: string[] | string;
+    anchor_type?: string;
+    evidence?: string[];
+    label?: string;
+    why?: string;
+  }>;
+  rationale?: string;
+  weaknesses?: string[];
+}
+
+export interface ApiBestChiasm {
+  candidate_id?: string;
+  pattern?: string;
+  pivot?: { line_id?: string; why?: string };
+  pivot_ids?: string[] | string;
+  pairs?: Array<{
+    left_ids?: string[] | string;
+    right_ids?: string[] | string;
+    anchor_type?: string;
+    evidence?: string[];
+    label?: string;
+    why?: string;
+  }>;
+  confidence?: ConfidenceLabel;
 }
 
 export interface ApiStructureFrame {
@@ -108,8 +140,8 @@ export interface UiStructure {
   cautions: string[];
 
   // Chiasm-ready slots (for later)
-  chiasm_candidates: unknown[];
-  best_chiasm: unknown | null;
+  chiasm_candidates: ApiChiasmCandidate[];
+  best_chiasm: ApiBestChiasm | null;
 }
 
 export interface UiStructureFrame {
