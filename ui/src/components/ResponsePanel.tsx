@@ -2,21 +2,22 @@ import { useMemo, useState } from "react";
 import { Tabs } from "./Tabs";
 import type { UiAnalyzeResponse, LayerId } from "../types/analyze";
 import { VisualPanel } from "./VisualPanel";
+import { GuidePanel } from "./GuidePanel";
 
 function isLayerTab(tab: string): tab is LayerId {
   return tab === "overview";
 }
 
 export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
-  const [tab, setTab] = useState<LayerId | "visual" | "chiasm" | "notes" | "raw">("overview");
+  const [tab, setTab] = useState<LayerId | "visual" | "chiasm" | "notes" | "raw" | "guide">("overview");
 
   const tabs = useMemo(
     () => [
       { id: "overview", label: "Overview" },
       { id: "visual", label: "Visual" },
       { id: "chiasm", label: "Chiasm" },
-      { id: "notes", label: "Notes" },
-      { id: "raw", label: "Raw" }
+      { id: "raw", label: "Raw" },
+      { id: "guide", label: "Guide" }
     ],
     []
   );
@@ -242,6 +243,8 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
           {JSON.stringify(data.raw ?? data, null, 2)}
         </pre>
       )}
+
+      {tab === "guide" && <GuidePanel />}
     </div>
   );
 }

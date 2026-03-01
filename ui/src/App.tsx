@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./index.css";
 import type { AnalyzeRequest } from "./types";
 import type { UiAnalyzeResponse } from "./types/analyze";
@@ -19,6 +19,7 @@ function uid() {
 }
 
 export default function App() {
+  const [showGuideBanner, setShowGuideBanner] = useState(false);
   const [reference, setReference] = useState("Genesis 15:1-6");
   const [translation, setTranslation] = useState("");
   const [text, setText] = useState("");
@@ -44,6 +45,15 @@ export default function App() {
     }),
     [reference, translation, text, includeChiasm, includeHebraicNotes, includeNTParallels]
   );
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("remez_seen_guide");
+      if (!seen) setShowGuideBanner(true);
+    } catch {
+      setShowGuideBanner(false);
+    }
+  }, []);
 
   async function run() {
     if (!text.trim()) {
@@ -72,6 +82,21 @@ export default function App() {
   return (
     <div className="min-h-screen app-shell parchment-texture">
       <div className="mx-auto max-w-6xl px-6 py-8">
+        {showGuideBanner ? (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-[color:var(--color-border)] bg-white/70 px-4 py-2 text-sm">
+            <div>New here? Open the Guide tab to learn how to read structure and chiasms.</div>
+            <button
+              type="button"
+              className="rounded-lg border border-[color:var(--color-border)] bg-white/70 px-2 py-1 text-xs"
+              onClick={() => {
+                localStorage.setItem("remez_seen_guide", "1");
+                setShowGuideBanner(false);
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
         <header className="mb-6">
           <div className="text-3xl folio-title">Remez</div>
           <div className="text-sm folio-subtitle">Structured Bible study output (Overview) + chiasm detection.</div>

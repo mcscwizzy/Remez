@@ -157,6 +157,22 @@
     background: rgba(255, 255, 255, 0.8);
   }
 
+  .guide-panel h2 {
+    font-size: 1.4rem;
+    margin-top: 0.25rem;
+  }
+
+  .guide-panel h3 {
+    font-size: 1.1rem;
+    margin-top: 0.25rem;
+  }
+
+  .guide-panel hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 0.75rem 0;
+  }
+
   .summary-node {
     background: rgba(255, 255, 255, 0.65);
     border: 1px solid var(--color-border);
