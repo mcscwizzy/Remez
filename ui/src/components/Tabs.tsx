@@ -10,13 +10,13 @@ export function Tabs({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2 border-b pb-2">
+    <div className="flex flex-wrap gap-2 pb-2 tab-bar">
       {tabs.map((t) => (
         <button
           key={t.id}
           className={[
-            "rounded-full px-3 py-1 text-sm border",
-            active === t.id ? "bg-black text-white" : "bg-white"
+            "tab-pill",
+            active === t.id ? "tab-pill-active" : ""
           ].join(" ")}
           onClick={() => onChange(t.id)}
           type="button"

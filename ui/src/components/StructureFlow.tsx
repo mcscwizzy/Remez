@@ -162,8 +162,8 @@ export function StructureFlow({ data }: StructureFlowProps) {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      <div className="flex-1 rounded-xl border bg-white">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+      <div className="flex-1 card card-edge">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--color-border)]">
           <div className="text-sm text-gray-600">Structure View</div>
           <button
             type="button"
@@ -186,7 +186,7 @@ export function StructureFlow({ data }: StructureFlowProps) {
                 setExportError(err?.message ?? "Failed to export PNG.");
               }
             }}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="rounded-lg border border-[color:var(--color-border)] bg-white/70 px-3 py-1 text-sm"
           >
             Download PNG
           </button>

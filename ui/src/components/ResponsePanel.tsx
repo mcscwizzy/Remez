@@ -23,7 +23,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
 
   if (!data) {
     return (
-      <div className="h-full rounded-2xl border p-6">
+      <div className="h-full card card-edge p-6">
         <div className="text-lg font-semibold">Output</div>
         <p className="mt-2 text-sm text-gray-600">Run an analysis to see results here.</p>
       </div>
@@ -33,7 +33,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
   const layerText = isLayerTab(tab) ? data.layers[tab]?.content ?? "" : "";
 
   return (
-    <div className="h-full rounded-2xl border p-6 flex flex-col gap-4">
+    <div className="h-full card card-edge p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-lg font-semibold">Output</div>
@@ -51,7 +51,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
 
       {tab === "chiasm" && (
         <div className="text-sm space-y-3">
-          <div className="rounded-xl border p-3">
+          <div className="card-plain p-3">
             <div className="font-semibold">Detected structure</div>
             <div className="mt-1">{data.structure.detected || "—"}</div>
             {data.structure.confidence && (
@@ -60,12 +60,12 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
           </div>
 
           {/* Parallels are useful NOW and later become visualization edges */}
-          <div className="rounded-xl border p-3">
+          <div className="card-plain p-3">
             <div className="font-semibold">Parallels</div>
             {data.structure.parallels.length ? (
               <div className="mt-2 space-y-2">
                 {data.structure.parallels.map((p) => (
-                  <div key={p.id} className="rounded-lg border p-3">
+                  <div key={p.id} className="rounded-lg border border-[color:var(--color-border)] bg-white/70 p-3">
                     <div className="font-medium">{p.id}</div>
                     {p.line_ids?.length ? (
                       <div className="text-gray-600">Lines: {p.line_ids.join(", ")}</div>
@@ -87,7 +87,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
             )}
           </div>
 
-          <div className="rounded-xl border p-3">
+          <div className="card-plain p-3">
             <div className="font-semibold">Chiasm candidates</div>
             {data.structure.chiasm_candidates.length ? (
               <div className="mt-2 text-gray-700">
@@ -109,7 +109,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
           </div>
 
           {data.structure.cautions.length ? (
-            <div className="rounded-xl border p-3">
+            <div className="card-plain p-3">
               <div className="font-semibold">Cautions</div>
               <ul className="mt-2 list-disc pl-5 text-gray-700">
                 {data.structure.cautions.map((c, i) => (
@@ -121,7 +121,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
 
           {/* Visualization hook */}
           {data.visualizations?.graph ? (
-            <div className="rounded-xl border p-3">
+            <div className="card-plain p-3">
               <div className="font-semibold">Visualizations</div>
               <div className="text-gray-600 mt-1">
                 Graph payload present ({data.visualizations.graph.nodes.length} nodes,{" "}

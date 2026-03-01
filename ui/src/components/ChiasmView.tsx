@@ -119,7 +119,7 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
         <div className="flex items-center gap-2">
           {showCandidate && candidates.length > 1 ? (
             <select
-              className="rounded-lg border px-2 py-1 text-sm"
+              className="rounded-lg border border-[color:var(--color-border)] bg-white/70 px-2 py-1 text-sm"
               value={activeCandidate?.id}
               onChange={(e) => setCandidateId(e.target.value)}
             >
@@ -133,7 +133,7 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
           <button
             type="button"
             onClick={handleExport}
-            className="rounded-lg border px-3 py-1 text-sm"
+            className="rounded-lg border border-[color:var(--color-border)] bg-white/70 px-3 py-1 text-sm"
           >
             Download PNG
           </button>
@@ -155,7 +155,7 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
         </div>
       ) : null}
 
-      <div ref={exportRef} className="rounded-xl border bg-white p-4 space-y-3">
+      <div ref={exportRef} className="card card-edge p-4 space-y-3">
         {levels.map((pair, idx) => {
           const indent = idx * 24;
           const isSelected = selection.pairIndex === idx;
@@ -201,7 +201,7 @@ export function ChiasmView({ data }: { data: UiAnalyzeResponse }) {
         </div>
       </div>
 
-      <div className="rounded-xl border p-4 bg-white text-sm space-y-3">
+      <div className="card card-edge p-4 text-sm space-y-3">
         <div className="font-semibold">Selection</div>
         {selectedPair ? (
           <div>
