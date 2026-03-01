@@ -306,16 +306,46 @@
   .narrative-layout {
     display: flex;
     gap: 20px;
-    align-items: stretch;
+    align-items: flex-start;
   }
 
   .narrative-column {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    gap: 14px;
+    max-width: 760px;
+    min-width: 0;
+  }
+
+  .narrative-scene {
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255, 252, 246, 0.84), rgba(255, 255, 255, 0.76));
+    box-shadow: var(--shadow-soft);
+    padding: 10px 12px 12px;
+  }
+
+  .narrative-scene-header {
+    padding: 2px 2px 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+  }
+
+  .narrative-scene-title {
+    margin: 0;
+    font-size: 0.86rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+    font-weight: 700;
+  }
+
+  .narrative-scene-beats {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    max-width: 700px;
-    margin: 0 auto;
   }
 
   .narrative-item {
@@ -327,61 +357,71 @@
 
   .narrative-node {
     width: 100%;
-    max-width: 680px;
-    min-height: 120px;
+    min-height: 88px;
     border: 1px solid var(--color-border);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.78);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.9);
     box-shadow: var(--shadow-soft);
-    padding: 14px 16px;
+    padding: 10px 12px;
     text-align: left;
     color: var(--color-ink);
     display: flex;
     flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .narrative-node:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-border));
+    transform: translateY(-1px);
+  }
+
+  .narrative-node.is-selected {
+    border-color: color-mix(in srgb, var(--color-accent) 80%, #9b7e52);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+  }
+
+  .narrative-node-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
   }
 
-  .narrative-node-section {
-    background: rgba(255, 248, 227, 0.9);
-    border-width: 2px;
-    font-weight: 600;
-    text-align: center;
-  }
-
-  .narrative-node-action {
-    background: rgba(255, 255, 255, 0.82);
-  }
-
-  .narrative-node-evaluation {
-    border-color: var(--color-accent);
-    background: rgba(253, 248, 235, 0.9);
-  }
-
-  .narrative-node-closure {
-    max-width: 520px;
-    border-style: dashed;
+  .narrative-node-label {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+    background: rgba(255, 248, 230, 0.86);
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: color-mix(in srgb, var(--color-ink) 82%, #8b6c41);
   }
 
   .narrative-node-range {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: var(--color-ink-muted);
+    white-space: nowrap;
   }
 
   .narrative-node-text {
-    font-size: 0.85rem;
-    line-height: 1.5;
+    font-size: 0.8rem;
+    line-height: 1.35;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
   .narrative-arrow {
-    height: 30px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     color: var(--color-ink-muted);
   }
 
@@ -406,6 +446,19 @@
     font-size: 0.9rem;
   }
 
+  .narrative-panel-range {
+    margin-top: 3px;
+    color: var(--color-ink-muted);
+    font-size: 0.74rem;
+  }
+
+  .narrative-panel-summary {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--color-ink);
+  }
+
   .narrative-panel-lines {
     margin-top: 12px;
     display: flex;
@@ -428,5 +481,19 @@
 
   .narrative-panel-line-text {
     flex: 1 1 auto;
+  }
+
+  @media (max-width: 960px) {
+    .narrative-layout {
+      flex-direction: column;
+    }
+
+    .narrative-column {
+      max-width: 100%;
+    }
+
+    .narrative-panel {
+      width: 100%;
+    }
   }
 }

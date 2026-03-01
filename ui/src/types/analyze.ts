@@ -7,6 +7,7 @@ export type LayerId = "overview";
 export interface ApiAnalyzeResponse {
   // Current backend fields (based on your sample)
   structure?: ApiStructure;
+  narrative_flow?: ApiNarrativeFlow;
 
   overview_summary?: string;
   literary_notes?: string[];
@@ -95,6 +96,24 @@ export interface ApiParallel {
   why?: string;
 }
 
+export interface ApiNarrativeFlow {
+  scenes?: ApiNarrativeScene[];
+}
+
+export interface ApiNarrativeScene {
+  id?: string;
+  title?: string;
+  line_ids?: string[];
+  beats?: ApiNarrativeBeat[];
+}
+
+export interface ApiNarrativeBeat {
+  id?: string;
+  label?: "Beat" | "Speech" | "Action" | "Turn" | "Evaluation" | "Petition" | "Verdict" | string;
+  line_ids?: string[];
+  summary?: string;
+}
+
 export interface ApiKeyTerm {
   term: string;
   language?: string; // "hebrew"
@@ -116,6 +135,7 @@ export interface UiAnalyzeResponse {
   layers: Record<LayerId, { content: string }>;
 
   structure: UiStructure;
+  narrative_flow: UiNarrativeFlow;
 
   literary_notes?: string[];
   keywords?: string[];
@@ -153,6 +173,24 @@ export interface UiStructureFrame {
   left_id: string;
   right_id: string;
   evidence?: string[];
+}
+
+export interface UiNarrativeFlow {
+  scenes: UiNarrativeScene[];
+}
+
+export interface UiNarrativeScene {
+  id: string;
+  title: string;
+  line_ids: string[];
+  beats: UiNarrativeBeat[];
+}
+
+export interface UiNarrativeBeat {
+  id: string;
+  label: "Beat" | "Speech" | "Action" | "Turn" | "Evaluation" | "Petition" | "Verdict";
+  line_ids: string[];
+  summary: string;
 }
 
 export interface UiVisualizations {

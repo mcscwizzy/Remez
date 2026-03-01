@@ -101,10 +101,31 @@ class StructureResult(BaseModel):
     cautions: List[str] = Field(default_factory=list)
 
 
+# -------- Narrative Flow Models --------
+
+class NarrativeBeat(BaseModel):
+    id: str
+    label: Literal["Beat", "Speech", "Action", "Turn", "Evaluation", "Petition", "Verdict"]
+    line_ids: List[str] = Field(default_factory=list)
+    summary: str
+
+
+class NarrativeScene(BaseModel):
+    id: str
+    title: str
+    line_ids: List[str] = Field(default_factory=list)
+    beats: List[NarrativeBeat] = Field(default_factory=list)
+
+
+class NarrativeFlowResult(BaseModel):
+    scenes: List[NarrativeScene] = Field(default_factory=list)
+
+
 # -------- Main Analysis Response --------
 
 class AnalysisResponse(BaseModel):
     structure: StructureResult
+    narrative_flow: NarrativeFlowResult
 
     overview_summary: str
     literary_notes: Optional[List[str]] = None

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+NARRATIVE_BEAT_LABELS = {"Beat", "Speech", "Action", "Turn", "Evaluation", "Petition", "Verdict"}
+
 
 def _ensure_list(value: Any) -> List[Any]:
     if value is None:
@@ -324,6 +326,130 @@ def _normalize_structure(data: Dict[str, Any]) -> None:
         s["parallels"] = []
 
 
+def _build_fallback_narrative_flow(lines: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not lines:
+        return {"scenes": []}
+
+    line_ids = [str(ln.get("id", "")) for ln in lines if str(ln.get("id", "")).strip()]
+    if not line_ids:
+        return {"scenes": []}
+
+    # Keep fallback beats compact and broadly readable.
+    beat_count = min(4, len(line_ids))
+    bucket_size = max(1, (len(line_ids) + beat_count - 1) // beat_count)
+
+    beats = []
+    cursor = 0
+    beat_idx = 1
+    while cursor < len(lines):
+        segment = lines[cursor : cursor + bucket_size]
+        segment_ids = [str(ln.get("id", "")) for ln in segment if str(ln.get("id", "")).strip()]
+        joined = " ".join(str(ln.get("text", "")).strip() for ln in segment).strip()
+        summary = joined[:140].strip()
+        if len(joined) > 140:
+            summary = summary.rstrip() + "..."
+        beats.append(
+            {
+                "id": f"B{beat_idx}",
+                "label": "Beat",
+                "line_ids": segment_ids,
+                "summary": summary or "Text advances in this movement.",
+            }
+        )
+        cursor += bucket_size
+        beat_idx += 1
+
+    return {
+        "scenes": [
+            {
+                "id": "S1",
+                "title": "Scene 1",
+                "line_ids": line_ids,
+                "beats": beats,
+            }
+        ]
+    }
+
+
+def _normalize_narrative_flow(data: Dict[str, Any]) -> None:
+    lines = data.get("structure", {}).get("lines", [])
+    valid_ids = {
+        str(ln.get("id", "")).strip() for ln in lines if isinstance(ln, dict) and str(ln.get("id", "")).strip()
+    }
+
+    flow = data.get("narrative_flow")
+    if not isinstance(flow, dict):
+        data["narrative_flow"] = _build_fallback_narrative_flow(lines)
+        return
+
+    scenes = _ensure_list(flow.get("scenes"))
+    normalized_scenes = []
+    for scene_idx, scene in enumerate(scenes, start=1):
+        if not isinstance(scene, dict):
+            continue
+
+        beats_raw = _ensure_list(scene.get("beats"))
+        normalized_beats = []
+        union_ids: List[str] = []
+        for beat_idx, beat in enumerate(beats_raw, start=1):
+            if not isinstance(beat, dict):
+                continue
+
+            beat_ids = [str(x).strip() for x in _ensure_list(beat.get("line_ids")) if str(x).strip()]
+            if valid_ids:
+                beat_ids = [x for x in beat_ids if x in valid_ids]
+
+            label = str(beat.get("label", "Beat"))
+            if label not in NARRATIVE_BEAT_LABELS:
+                label = "Beat"
+
+            summary = str(beat.get("summary", "")).strip()
+            if not summary:
+                summary = "Text advances in this movement."
+
+            beat_id = str(beat.get("id", "")).strip() or f"S{scene_idx}B{beat_idx}"
+            normalized_beats.append(
+                {
+                    "id": beat_id,
+                    "label": label,
+                    "line_ids": beat_ids,
+                    "summary": summary,
+                }
+            )
+            union_ids.extend(beat_ids)
+
+        dedup_union: List[str] = []
+        seen = set()
+        for line_id in union_ids:
+            if line_id in seen:
+                continue
+            seen.add(line_id)
+            dedup_union.append(line_id)
+
+        scene_line_ids = [str(x).strip() for x in _ensure_list(scene.get("line_ids")) if str(x).strip()]
+        if valid_ids:
+            scene_line_ids = [x for x in scene_line_ids if x in valid_ids]
+        if dedup_union:
+            scene_line_ids = dedup_union
+
+        scene_id = str(scene.get("id", "")).strip() or f"S{scene_idx}"
+        scene_title = str(scene.get("title", "")).strip() or f"Scene {scene_idx}"
+        normalized_scenes.append(
+            {
+                "id": scene_id,
+                "title": scene_title,
+                "line_ids": scene_line_ids,
+                "beats": normalized_beats,
+            }
+        )
+
+    if not normalized_scenes:
+        data["narrative_flow"] = _build_fallback_narrative_flow(lines)
+        return
+
+    data["narrative_flow"] = {"scenes": normalized_scenes}
+
+
 def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Coerce slightly-wrong LLM JSON into the AnalysisResponse schema.
@@ -354,6 +480,7 @@ def normalize_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
     _normalize_key_terms(data)
     _normalize_nt_parallels(data)
     _normalize_structure(data)
+    _normalize_narrative_flow(data)
 
     print(f"[remez] literary_notes post-normalize: {bool(data.get('literary_notes'))}")
     return data

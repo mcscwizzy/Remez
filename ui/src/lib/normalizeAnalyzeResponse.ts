@@ -9,8 +9,60 @@ const asString = (v: unknown, fallback = ""): string => {
   return typeof v === "string" ? v : fallback;
 };
 
+const NARRATIVE_LABELS = new Set(["Beat", "Speech", "Action", "Turn", "Evaluation", "Petition", "Verdict"]);
+type NarrativeLabel = "Beat" | "Speech" | "Action" | "Turn" | "Evaluation" | "Petition" | "Verdict";
+
+const toNarrativeLabel = (value: string): NarrativeLabel => {
+  return NARRATIVE_LABELS.has(value) ? (value as NarrativeLabel) : "Beat";
+};
+
 export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResponse {
   const structure = api.structure ?? {};
+  const lines = asArray<{ id: string; text: string }>(structure.lines, []);
+  const validIds = new Set(lines.map((line) => line.id));
+
+  const normalizedScenes = asArray(api.narrative_flow?.scenes, []).map((scene: any, sceneIdx: number) => {
+    const beats = asArray(scene?.beats, []).map((beat: any, beatIdx: number) => {
+      const label = asString(beat?.label, "Beat");
+      const line_ids = asArray<string>(beat?.line_ids, []).filter((id) => validIds.has(id));
+      return {
+        id: asString(beat?.id, `S${sceneIdx + 1}B${beatIdx + 1}`),
+        label: toNarrativeLabel(label),
+        line_ids,
+        summary: asString(beat?.summary, "Text advances in this movement.")
+      };
+    });
+
+    const sceneLineIds = beats.flatMap((beat) => beat.line_ids);
+    const dedupSceneLineIds = Array.from(new Set(sceneLineIds));
+    return {
+      id: asString(scene?.id, `S${sceneIdx + 1}`),
+      title: asString(scene?.title, `Scene ${sceneIdx + 1}`),
+      line_ids: dedupSceneLineIds.length
+        ? dedupSceneLineIds
+        : asArray<string>(scene?.line_ids, []).filter((id) => validIds.has(id)),
+      beats
+    };
+  });
+
+  const fallbackNarrativeFlow = (() => {
+    if (!lines.length) return { scenes: [] };
+    return {
+      scenes: [
+        {
+          id: "S1",
+          title: "Scene 1",
+          line_ids: lines.map((line) => line.id),
+          beats: lines.map((line, idx) => ({
+            id: `S1B${idx + 1}`,
+            label: "Beat" as const,
+            line_ids: [line.id],
+            summary: line.text
+          }))
+        }
+      ]
+    };
+  })();
 
   return {
     layers: {
@@ -21,7 +73,7 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       detected: asString(structure.detected, "unknown"),
       confidence: structure.confidence,
 
-      lines: asArray(structure.lines, []),
+      lines,
       parallels: asArray(structure.parallels, []).map((p: any, idx: number) => ({
         id: asString(p?.id, `P${idx + 1}`),
         ...p
@@ -33,6 +85,7 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       chiasm_candidates: asArray(structure.chiasm_candidates, []),
       best_chiasm: (structure.best_chiasm as any) ?? null
     },
+    narrative_flow: normalizedScenes.length ? { scenes: normalizedScenes } : fallbackNarrativeFlow,
 
     literary_notes: asArray<string>(api.literary_notes, []),
     keywords: asArray<string>(api.keywords, []),

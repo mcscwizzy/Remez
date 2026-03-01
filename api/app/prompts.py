@@ -138,6 +138,24 @@ Return JSON with EXACTLY these keys and types:
     "cautions": [string, ...]
   },
 
+  "narrative_flow": {
+    "scenes": [
+      {
+        "id": string,
+        "title": string,
+        "line_ids": [string, ...],
+        "beats": [
+          {
+            "id": string,
+            "label": "Beat" | "Speech" | "Action" | "Turn" | "Evaluation" | "Petition" | "Verdict",
+            "line_ids": [string, ...],
+            "summary": string
+          }
+        ]
+      }
+    ]
+  },
+
   "overview_summary": string,
   "literary_notes": [string, ...],
   "keywords": [string, ...],
@@ -173,6 +191,21 @@ Structure detection rules (hard):
 - If detected="parallelism", you MUST populate structure.parallels with at least 2 groups.
 - Each parallels group MUST reference valid line_ids from structure.lines.
 - Keep groups meaningful (avoid listing every line). Use groups that show repetition or conceptual parallels.
+
+Narrative flow rules (hard, universal):
+
+- narrative_flow MUST be present for every passage.
+- It must work for ANY passage; do not assume Genesis-like sequencing.
+- Scenes: create 1 to 6 scenes maximum.
+- Create a new scene only when a clear boundary exists (speaker change, time/location marker, refrain, or major turn).
+- If the passage is short, use exactly 1 scene.
+- Each scene MUST contain 2 to 7 beats whenever passage length allows; for very short passages, use at least 1 beat.
+- Every beat.line_ids MUST reference valid ids from structure.lines.
+- scene.line_ids MUST be the union of all beat.line_ids in that scene.
+- beat.summary MUST be 8 to 18 words, present tense, vivid but accurate.
+- Do NOT paste full verses into beat.summary.
+- If uncertain about label choice, use "Beat" (do NOT guess wrong).
+- Use only these labels: "Beat", "Speech", "Action", "Turn", "Evaluation", "Petition", "Verdict".
 
 3) Chiastic attempt step (required):
 - After structure.lines and structure.parallels are built, you MUST attempt a chiastic parse.
