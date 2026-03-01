@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import ReactFlow, { Background, Controls, type Edge, type Node } from "reactflow";
 import type { UiAnalyzeResponse } from "../types/analyze";
 import "reactflow/dist/style.css";
+import { exportSvgFromContainer } from "../lib/svgExport";
 
 const X_POSITION = 250;
 const Y_SPACING = 120;
@@ -20,6 +21,8 @@ type ParallelGroup = UiAnalyzeResponse["structure"]["parallels"][number];
 
 export function StructureFlow({ data }: StructureFlowProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   const structure = data.structure;
   const lines = structure?.lines ?? [];
@@ -160,7 +163,29 @@ export function StructureFlow({ data }: StructureFlowProps) {
   return (
     <div className="flex flex-col lg:flex-row gap-4">
       <div className="flex-1 rounded-xl border bg-white">
-        <div className="h-[560px]">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <div className="text-sm text-gray-600">Structure View</div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!exportRef.current) {
+                setExportError("Rendered SVG not found.");
+                window.alert("Rendered SVG not found.");
+                return;
+              }
+              setExportError(null);
+              const result = exportSvgFromContainer(exportRef.current, "remez-structure.svg");
+              if (!result.ok) {
+                setExportError(result.error ?? "Failed to export SVG.");
+              }
+            }}
+            className="rounded-lg border px-3 py-1 text-sm"
+          >
+            Download SVG
+          </button>
+        </div>
+        {exportError ? <div className="px-4 py-2 text-sm text-red-600">{exportError}</div> : null}
+        <div ref={exportRef} className="h-[560px]">
           <ReactFlow
             nodes={nodes}
             edges={edges}
