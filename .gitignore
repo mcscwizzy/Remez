@@ -225,3 +225,6 @@ infra/.terraform.lock.hcl
 
 # Node
 node_modules/
+
+# TypeScript build info
+ui/tsconfig.tsbuildinfo
