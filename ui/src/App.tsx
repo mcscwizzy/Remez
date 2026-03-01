@@ -21,12 +21,15 @@ function uid() {
 export default function App() {
   const [showGuideBanner, setShowGuideBanner] = useState(false);
   const [text, setText] = useState("");
+  const [apiReady, setApiReady] = useState<"unknown" | "ready" | "error">("unknown");
+  const maxInputChars = 12000;
 
   const [includeChiasm, setIncludeChiasm] = useState(true);
   const [includeHebraicNotes, setIncludeHebraicNotes] = useState(true);
   const [includeNTParallels, setIncludeNTParallels] = useState(true);
 
   const [loading, setLoading] = useState(false);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
   const [current, setCurrent] = useState<UiAnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,9 +54,40 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+    fetch("/health", { signal: controller.signal })
+      .then((res) => {
+        setApiReady(res.ok ? "ready" : "error");
+      })
+      .catch(() => setApiReady("error"))
+      .finally(() => window.clearTimeout(timeoutId));
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingElapsed(0);
+      return;
+    }
+    const start = Date.now();
+    const id = window.setInterval(() => {
+      setLoadingElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [loading]);
+
   async function run() {
     if (!text.trim()) {
       setError("Paste passage text to analyze.");
+      return;
+    }
+    if (text.trim().length > maxInputChars) {
+      setError(`Passage too long. Please shorten the text (max ${maxInputChars} characters).`);
       return;
     }
     setLoading(true);
@@ -140,6 +174,14 @@ export default function App() {
               <button className="w-full btn-ink py-2 disabled:opacity-60" onClick={run} disabled={loading} type="button">
                 {loading ? "Running..." : "Analyze"}
               </button>
+              {apiReady === "unknown" ? (
+                <div className="text-xs text-gray-600">Warming up API…</div>
+              ) : apiReady === "error" ? (
+                <div className="text-xs text-gray-600">API readiness check failed. You can still try Analyze.</div>
+              ) : null}
+              {loading && loadingElapsed >= 15 ? (
+                <div className="text-xs text-gray-600">Still working… long passages can take a minute or two.</div>
+              ) : null}
 
               {error && (
                 <div className="card-plain p-3 text-sm">

@@ -11,10 +11,11 @@ AZURE_AI_DEPLOYMENT = os.getenv(
 )
 AZURE_AI_API_KEY = os.getenv("AZURE_AI_API_KEY", "")
 AZURE_AI_API_VERSION = os.getenv("AZURE_AI_API_VERSION", "2024-10-21")
+LLM_HTTP_TIMEOUT_SEC = float(os.getenv("LLM_HTTP_TIMEOUT_SEC", "240"))
 
 
 async def call_azure_foundry(prompt: str) -> str:
-    timeout = httpx.Timeout(300.0)  # 5 minutes
+    timeout = httpx.Timeout(LLM_HTTP_TIMEOUT_SEC)
     if not AZURE_AI_API_KEY:
         raise RuntimeError("AZURE_AI_API_KEY is not set.")
 
