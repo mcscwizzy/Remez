@@ -443,7 +443,6 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
         chunk_summaries.append(
             {
                 "id": chunk.id,
-                "range": f"chars {chunk.start_char}-{chunk.end_char}",
                 "overview_summary": validated.overview_summary,
                 "confidence": validated.confidence,
             }
@@ -472,7 +471,7 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
     merged = merge_chunk_results(results)
     merged["chunked"] = True
     merged["chunk_count"] = len(chunks)
-    merged["chunks"] = chunk_summaries
+    merged["chunk_summaries"] = chunk_summaries
     if warnings:
         merged["_warnings"] = warnings
 

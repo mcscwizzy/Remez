@@ -98,7 +98,8 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
     key_terms: asArray(api.key_terms, []),
     chunked: Boolean(api.chunked),
     chunk_count: typeof api.chunk_count === "number" ? api.chunk_count : undefined,
-    chunks: asArray(api.chunks, []),
+    chunk_summaries: asArray(api.chunk_summaries, []),
+    chapter_flow_summary: asArray<string>(api.chapter_flow_summary, []),
     warnings: asArray<string>(api._warnings, []),
 
     // reserved for later; backend can start emitting this when ready

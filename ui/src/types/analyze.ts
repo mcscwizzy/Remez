@@ -32,7 +32,8 @@ export interface ApiAnalyzeResponse {
   notable_alternatives?: string[];
   chunked?: boolean;
   chunk_count?: number;
-  chunks?: ApiChunkSummary[];
+  chunk_summaries?: ApiChunkSummary[];
+  chapter_flow_summary?: string[];
   _warnings?: string[];
 
   // Keep raw passthrough safe
@@ -133,7 +134,6 @@ export interface ApiNtParallel {
 
 export interface ApiChunkSummary {
   id: string;
-  range: string;
   overview_summary: string;
   confidence: ConfidenceLabel;
 }
@@ -159,7 +159,8 @@ export interface UiAnalyzeResponse {
   key_terms?: ApiKeyTerm[];
   chunked?: boolean;
   chunk_count?: number;
-  chunks?: ApiChunkSummary[];
+  chunk_summaries?: ApiChunkSummary[];
+  chapter_flow_summary?: string[];
   warnings?: string[];
 
   // Optional visualization payloads for later

@@ -1,98 +1,213 @@
 from __future__ import annotations
 
+import re
+from collections import Counter
 from typing import Any, Dict, List
 
 
-def _dedupe_str(items: List[str], cap: int | None = None) -> List[str]:
-    out: List[str] = []
-    seen = set()
-    for raw in items:
-        item = str(raw).strip()
-        if not item:
-            continue
-        key = item.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(item)
-        if cap is not None and len(out) >= cap:
-            break
-    return out
+STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "from",
+    "into",
+    "through",
+    "over",
+    "under",
+    "when",
+    "where",
+    "then",
+    "their",
+    "there",
+    "about",
+    "chapter",
+    "passage",
+}
 
 
-def _aggregate_confidence(confidences: List[str]) -> str:
+def _clean(item: Any) -> str:
+    return str(item or "").strip()
+
+
+def _tokenize(value: str) -> List[str]:
+    return [t for t in re.findall(r"[a-zA-Z']+", value.lower()) if t and t not in STOPWORDS]
+
+
+def _semantic_key(value: str) -> str:
+    tokens = _tokenize(value)
+    if not tokens:
+        return value.lower()
+    return " ".join(sorted(set(tokens[:6])))
+
+
+def _pick_confidence(values: List[str]) -> str:
     rank = {"low": 0, "medium": 1, "high": 2}
-    normalized = [c.lower() for c in confidences if isinstance(c, str) and c.lower() in rank]
+    normalized = [v.lower() for v in values if isinstance(v, str) and v.lower() in rank]
     if not normalized:
         return "medium"
-    return min(normalized, key=lambda c: rank[c])
+    return min(normalized, key=lambda x: rank[x])
 
 
-def _merge_overview(parts: List[str]) -> str:
-    cleaned = [p.strip() for p in parts if isinstance(p, str) and p.strip()]
+def _merge_ranked_text_lists(values: List[str], cap: int) -> List[str]:
+    buckets: Dict[str, Dict[str, Any]] = {}
+    for val in values:
+        text = _clean(val)
+        if not text:
+            continue
+        key = _semantic_key(text)
+        if key not in buckets:
+            buckets[key] = {"count": 0, "best": text}
+        buckets[key]["count"] += 1
+        if len(text) > len(buckets[key]["best"]):
+            buckets[key]["best"] = text
+
+    ranked = sorted(buckets.values(), key=lambda x: (x["count"], len(x["best"])), reverse=True)
+    return [x["best"] for x in ranked[:cap]]
+
+
+def _merge_keywords(results: List[Dict[str, Any]], cap: int = 12) -> List[str]:
+    counter: Counter[str] = Counter()
+    canonical: Dict[str, str] = {}
+    for result in results:
+        for raw in (result.get("keywords") or []):
+            keyword = _clean(raw)
+            if not keyword:
+                continue
+            key = keyword.lower()
+            counter[key] += 1
+            canonical[key] = keyword
+    ranked = sorted(counter.items(), key=lambda kv: (kv[1], len(kv[0])), reverse=True)
+    return [canonical[k] for k, _ in ranked[:cap]]
+
+
+def _merge_nt_parallels(results: List[Dict[str, Any]], cap: int = 5) -> List[Dict[str, str]]:
+    by_ref: Dict[str, Dict[str, str]] = {}
+    for result in results:
+        for item in (result.get("nt_parallels") or []):
+            if not isinstance(item, dict):
+                continue
+            ref = _clean(item.get("reference"))
+            if not ref:
+                continue
+            key = ref.lower()
+            reason = _clean(item.get("reason"))
+            record = {
+                "reference": ref,
+                "type": _clean(item.get("type")) or "thematic",
+                "reason": reason,
+            }
+            if key not in by_ref or len(reason) > len(by_ref[key].get("reason", "")):
+                by_ref[key] = record
+    ranked = sorted(by_ref.values(), key=lambda x: len(x.get("reason", "")), reverse=True)
+    return ranked[:cap]
+
+
+def _synthesize_overview(chunk_summaries: List[str], themes: List[str], motifs: List[str]) -> str:
+    summary_text = " ".join([_clean(x) for x in chunk_summaries if _clean(x)])
+    summary_text = re.sub(r"\s+", " ", summary_text).strip()
+    if not summary_text:
+        summary_text = "This chapter unfolds in multiple connected movements."
+    anchors: List[str] = []
+    if themes:
+        anchors.append("Themes: " + "; ".join(themes[:3]) + ".")
+    if motifs:
+        anchors.append("Recurring motifs: " + "; ".join(motifs[:3]) + ".")
+    if anchors:
+        return summary_text + " " + " ".join(anchors)
+    return summary_text
+
+
+def _synthesize_literary_notes(chunk_notes: List[str], chunk_summaries: List[str], cap: int = 5) -> List[str]:
+    base = _merge_ranked_text_lists(chunk_notes, cap=max(cap, 3))
+    if len(base) < 3:
+        # Backfill from chunk summaries so this stays chapter-level and readable.
+        base.extend(_merge_ranked_text_lists(chunk_summaries, cap=cap))
+    shaped: List[str] = []
+    for note in base:
+        text = _clean(note)
+        if not text:
+            continue
+        if len(text) > 220:
+            text = text[:219].rstrip() + "…"
+        if not re.search(r"[.!?]$", text):
+            text += "."
+        shaped.append(text)
+        if len(shaped) >= cap:
+            break
+    return shaped[: max(3, min(cap, len(shaped)))] if shaped else []
+
+
+def _synthesize_chapter_flow(chunk_summaries: List[str]) -> List[str]:
+    bullets: List[str] = []
+    cleaned = [_clean(x) for x in chunk_summaries if _clean(x)]
     if not cleaned:
-        return "Chunked analysis completed, but overview content was sparse across chunks."
-    if len(cleaned) <= 3:
-        return " ".join(cleaned)
-    midpoint = len(cleaned) // 2
-    return " ".join(cleaned[:midpoint]) + "\n\n" + " ".join(cleaned[midpoint:])
+        return ["Opening movement establishes the chapter direction."]
+
+    size = min(6, max(3, len(cleaned)))
+    # Preserve ordered progression: sample evenly across chunk sequence.
+    step = max(1, len(cleaned) // size)
+    selected = cleaned[::step][:size]
+
+    for idx, summary in enumerate(selected, start=1):
+        text = re.sub(r"\s+", " ", summary).strip()
+        if len(text) > 110:
+            text = text[:109].rstrip() + "…"
+        if not text:
+            continue
+        label = "Opening" if idx == 1 else "Closing" if idx == len(selected) else f"Movement {idx}"
+        bullets.append(f"{label}: {text}")
+    return bullets[:6]
 
 
 def merge_chunk_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not results:
         return {}
 
-    overviews = [str(r.get("overview_summary", "")).strip() for r in results]
-    literary_notes = _dedupe_str([x for r in results for x in (r.get("literary_notes") or [])], cap=5)
-    keywords = _dedupe_str([x for r in results for x in (r.get("keywords") or [])], cap=12)
-    themes = _dedupe_str([x for r in results for x in (r.get("themes") or [])], cap=8)
-    worldview = _dedupe_str([x for r in results for x in (r.get("cultural_worldview_notes") or [])], cap=6)
-    motifs = _dedupe_str([x for r in results for x in (r.get("motifs_and_patterns") or [])], cap=6)
-    temple = _dedupe_str([x for r in results for x in (r.get("second_temple_bridge") or [])], cap=4)
-    alternatives = _dedupe_str([x for r in results for x in (r.get("notable_alternatives") or [])], cap=4)
-    applications = _dedupe_str([x for r in results for x in (r.get("application") or [])], cap=2)
+    chunk_overviews = [_clean(r.get("overview_summary")) for r in results]
+    chunk_themes = [x for r in results for x in (r.get("themes") or [])]
+    chunk_motifs = [x for r in results for x in (r.get("motifs_and_patterns") or [])]
+    chunk_notes = [x for r in results for x in (r.get("literary_notes") or [])]
+    chunk_keywords = [x for r in results for x in (r.get("keywords") or [])]
+    chunk_apps = [x for r in results for x in (r.get("application") or [])]
 
-    nt_by_ref: Dict[str, Dict[str, Any]] = {}
-    for r in results:
-        for item in (r.get("nt_parallels") or []):
+    themes = _merge_ranked_text_lists(chunk_themes, cap=8)
+    motifs = _merge_ranked_text_lists(chunk_motifs, cap=6)
+    worldview = _merge_ranked_text_lists(
+        [x for r in results for x in (r.get("cultural_worldview_notes") or [])], cap=6
+    )
+    temple = _merge_ranked_text_lists(
+        [x for r in results for x in (r.get("second_temple_bridge") or [])], cap=4
+    )
+    alternatives = _merge_ranked_text_lists(
+        [x for r in results for x in (r.get("notable_alternatives") or [])], cap=4
+    )
+    applications = _merge_ranked_text_lists(chunk_apps, cap=2)
+    keywords = _merge_keywords(results, cap=12)
+    nt_parallels = _merge_nt_parallels(results, cap=5)
+
+    key_terms: List[Dict[str, str]] = []
+    seen_terms = set()
+    for result in results:
+        for item in (result.get("key_terms") or []):
             if not isinstance(item, dict):
                 continue
-            ref = str(item.get("reference", "")).strip()
-            if not ref:
-                continue
-            key = ref.lower()
-            if key in nt_by_ref:
-                continue
-            nt_by_ref[key] = {
-                "reference": ref,
-                "type": str(item.get("type", "thematic") or "thematic"),
-                "reason": str(item.get("reason", "")),
-            }
-            if len(nt_by_ref) >= 5:
-                break
-        if len(nt_by_ref) >= 5:
-            break
-
-    key_terms = []
-    key_term_seen = set()
-    for r in results:
-        for item in (r.get("key_terms") or []):
-            if not isinstance(item, dict):
-                continue
-            term = str(item.get("term", "")).strip()
+            term = _clean(item.get("term"))
+            language = (_clean(item.get("language")) or "english").lower()
             if not term:
                 continue
-            lang = str(item.get("language", "english")).strip().lower() or "english"
-            dedupe_key = f"{term.lower()}::{lang}"
-            if dedupe_key in key_term_seen:
+            dedupe = f"{term.lower()}::{language}"
+            if dedupe in seen_terms:
                 continue
-            key_term_seen.add(dedupe_key)
+            seen_terms.add(dedupe)
             key_terms.append(
                 {
                     "term": term,
-                    "language": lang,
-                    "gloss": str(item.get("gloss", "")),
-                    "why_it_matters": str(item.get("why_it_matters", "")),
+                    "language": language,
+                    "gloss": _clean(item.get("gloss")),
+                    "why_it_matters": _clean(item.get("why_it_matters")),
                 }
             )
             if len(key_terms) >= 8:
@@ -100,7 +215,11 @@ def merge_chunk_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         if len(key_terms) >= 8:
             break
 
-    confidences = [str(r.get("confidence", "")).strip() for r in results]
+    overview_summary = _synthesize_overview(chunk_overviews, themes, motifs)
+    literary_notes = _synthesize_literary_notes(chunk_notes, chunk_overviews, cap=5)
+    chapter_flow_summary = _synthesize_chapter_flow(chunk_overviews)
+
+    confidence = _pick_confidence([_clean(r.get("confidence")) for r in results])
 
     return {
         "structure": {
@@ -112,20 +231,21 @@ def merge_chunk_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
             "chiasm_candidates": [],
             "best_chiasm": None,
             "cautions": [
-                "This analysis was chunked. Structural relationships may be local to each chunk rather than global across the entire chapter."
+                "This passage was analyzed in chunks. Structural findings are strongest within local sections unless a larger pattern is explicitly synthesized later."
             ],
         },
         "narrative_flow": {"scenes": []},
-        "overview_summary": _merge_overview(overviews),
-        "literary_notes": literary_notes[: max(3, min(5, len(literary_notes)))] if literary_notes else [],
+        "overview_summary": overview_summary,
+        "literary_notes": literary_notes,
         "keywords": keywords,
         "themes": themes,
         "cultural_worldview_notes": worldview,
         "motifs_and_patterns": motifs,
         "second_temple_bridge": temple,
         "key_terms": key_terms,
-        "nt_parallels": list(nt_by_ref.values()),
-        "confidence": _aggregate_confidence(confidences),
+        "nt_parallels": nt_parallels,
+        "confidence": confidence,
         "notable_alternatives": alternatives,
-        "application": applications,
+        "application": applications[:2],
+        "chapter_flow_summary": chapter_flow_summary,
     }
