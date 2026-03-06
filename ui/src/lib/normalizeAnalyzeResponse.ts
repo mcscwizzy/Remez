@@ -96,6 +96,10 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
     nt_parallels: asArray(api.nt_parallels, []),
     notable_alternatives: asArray<string>(api.notable_alternatives, []),
     key_terms: asArray(api.key_terms, []),
+    chunked: Boolean(api.chunked),
+    chunk_count: typeof api.chunk_count === "number" ? api.chunk_count : undefined,
+    chunks: asArray(api.chunks, []),
+    warnings: asArray<string>(api._warnings, []),
 
     // reserved for later; backend can start emitting this when ready
     visualizations: (api as any).visualizations,

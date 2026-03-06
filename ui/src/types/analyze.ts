@@ -30,6 +30,10 @@ export interface ApiAnalyzeResponse {
   confidence?: ConfidenceLabel;
 
   notable_alternatives?: string[];
+  chunked?: boolean;
+  chunk_count?: number;
+  chunks?: ApiChunkSummary[];
+  _warnings?: string[];
 
   // Keep raw passthrough safe
   [k: string]: unknown;
@@ -127,6 +131,13 @@ export interface ApiNtParallel {
   reason?: string;
 }
 
+export interface ApiChunkSummary {
+  id: string;
+  range: string;
+  overview_summary: string;
+  confidence: ConfidenceLabel;
+}
+
 // ------------------------------
 // UI VIEW MODEL (stable contract)
 // ------------------------------
@@ -146,6 +157,10 @@ export interface UiAnalyzeResponse {
   nt_parallels?: ApiNtParallel[];
   notable_alternatives?: string[];
   key_terms?: ApiKeyTerm[];
+  chunked?: boolean;
+  chunk_count?: number;
+  chunks?: ApiChunkSummary[];
+  warnings?: string[];
 
   // Optional visualization payloads for later
   visualizations?: UiVisualizations;

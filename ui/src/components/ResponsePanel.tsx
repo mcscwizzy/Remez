@@ -46,6 +46,44 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
 
       {isLayerTab(tab) && (
         <div className="space-y-4">
+          {data.chunked ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-sm text-amber-900">
+              This passage was analyzed in multiple chunks for stability. Structural findings may be strongest
+              within individual sections.
+            </div>
+          ) : null}
+
+          {data.chunked && data.chunks && data.chunks.length > 0 ? (
+            <details className="rounded-xl border border-[color:var(--color-border)] bg-white/70 p-3">
+              <summary className="cursor-pointer select-none text-sm font-semibold">
+                Chunk Summaries ({data.chunk_count ?? data.chunks.length})
+              </summary>
+              <div className="mt-3 space-y-2">
+                {data.chunks.map((chunk) => (
+                  <div key={chunk.id} className="rounded-lg border border-[color:var(--color-border)] bg-white/80 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-medium text-sm">{chunk.id}</div>
+                      <div className="text-xs text-gray-600">{chunk.range}</div>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-600">Confidence: {String(chunk.confidence)}</div>
+                    <div className="mt-2 text-sm text-gray-700">{chunk.overview_summary}</div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+
+          {data.warnings && data.warnings.length > 0 ? (
+            <div className="rounded-xl border border-red-200 bg-red-50/70 p-3">
+              <div className="text-sm font-semibold text-red-900">Warnings</div>
+              <ul className="mt-2 list-disc pl-5 text-sm text-red-800">
+                {data.warnings.map((warning, idx) => (
+                  <li key={idx}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="whitespace-pre-wrap leading-relaxed text-sm">
             {layerText.trim() ? layerText : "No content returned for this section."}
           </div>

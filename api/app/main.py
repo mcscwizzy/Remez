@@ -7,6 +7,8 @@ from .models import AnalyzeRequest, AnalysisResponse
 from .prompts import build_prompt
 from .services.azure_foundry import call_azure_foundry, UpstreamModelContentError
 from .services.normalizer import normalize_llm_output
+from .services.chunking import chunk_passage
+from .services.merge import merge_chunk_results
 import json
 import os
 import time
@@ -14,7 +16,7 @@ import uuid
 import asyncio
 import logging
 import httpx
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 app = FastAPI(title="Remez API", version="0.2.1")
 logger = logging.getLogger("remez")
@@ -37,6 +39,8 @@ app.add_middleware(
 MAX_WALL_TIME_SEC = float(os.getenv("MAX_WALL_TIME_SEC", "240"))
 MAX_INPUT_CHARS = int(os.getenv("MAX_INPUT_CHARS", "12000"))
 RAW_LOG_CHARS = int(os.getenv("RAW_LOG_CHARS", "3000"))
+MAX_ANALYZE_CHARS_PER_CHUNK = int(os.getenv("MAX_ANALYZE_CHARS_PER_CHUNK", "2500"))
+ANALYZE_CHUNK_OVERLAP_CHARS = int(os.getenv("ANALYZE_CHUNK_OVERLAP_CHARS", "250"))
 
 
 @app.middleware("http")
@@ -228,79 +232,71 @@ def _parse_and_normalize(raw_response: str, attempt: str) -> tuple[AnalysisRespo
     return validated, normalized, None
 
 
-async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
-    if not req.text or not req.text.strip():
-        raise HTTPException(status_code=400, detail="Passage text is required.")
-    if len(req.text) > MAX_INPUT_CHARS:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Passage too long. Please shorten the text (max {MAX_INPUT_CHARS} characters).",
-        )
-
-    _stage_log("prompt_build", "start")
-    prompt = build_prompt(req.text)
-    _stage_log("prompt_build", "end", chars=len(prompt))
+async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse | None, Dict[str, Any] | None, JSONResponse | None, int]:
+    unit_start = time.perf_counter()
+    _stage_log("prompt_build", "start", unit=unit)
+    prompt = build_prompt(text)
+    _stage_log("prompt_build", "end", unit=unit, chars=len(prompt))
 
     start_total = time.perf_counter()
+    llm_ms = 0
+    parse_norm_ms = 0
 
     async def call_with_budget(prompt_text: str) -> str:
         remaining = max(1.0, MAX_WALL_TIME_SEC - (time.perf_counter() - start_total))
         return await asyncio.wait_for(call_azure_foundry(prompt_text), timeout=remaining)
 
-    llm_ms = 0
-    parse_norm_ms = 0
-
-    _stage_log("model_request", "start", attempt="initial")
+    _stage_log("model_request", "start", unit=unit, attempt="initial")
     llm_start = time.perf_counter()
     try:
         raw_response = await call_with_budget(prompt)
     except asyncio.TimeoutError:
-        logger.error("model_request_timeout", extra={"attempt": "initial"})
-        return _error_json(
+        logger.error("model_request_timeout", extra={"unit": unit, "attempt": "initial"})
+        return None, None, _error_json(
             status_code=504,
             error="Upstream model call failed",
             stage="model_call",
             details="Analysis exceeded time limit.",
-        )
+        ), int((time.perf_counter() - unit_start) * 1000)
     except httpx.HTTPStatusError as exc:
         detail = _truncate_for_log(exc.response.text if exc.response is not None else str(exc))
         logger.error(
             "model_request_http_status_error",
-            extra={"attempt": "initial", "status_code": exc.response.status_code if exc.response else None, "details": detail},
+            extra={"unit": unit, "attempt": "initial", "status_code": exc.response.status_code if exc.response else None, "details": detail},
         )
-        return _error_json(
+        return None, None, _error_json(
             status_code=502,
             error="Upstream model call failed",
             stage="model_call",
             details=detail,
-        )
+        ), int((time.perf_counter() - unit_start) * 1000)
     except UpstreamModelContentError as exc:
         logger.error(
             "extract_model_text_failed",
-            extra={"attempt": "initial", "details": exc.details},
+            extra={"unit": unit, "attempt": "initial", "details": exc.details},
         )
-        return _error_json(
+        return None, None, _error_json(
             status_code=502,
             error=exc.error,
             stage=exc.stage,
             details=exc.details,
-        )
+        ), int((time.perf_counter() - unit_start) * 1000)
     except Exception as exc:
-        logger.exception("model_request_failed", extra={"attempt": "initial", "exception_type": type(exc).__name__})
-        return _error_json(
+        logger.exception("model_request_failed", extra={"unit": unit, "attempt": "initial", "exception_type": type(exc).__name__})
+        return None, None, _error_json(
             status_code=502,
             error="Upstream model call failed",
             stage="model_call",
             details=str(exc),
-        )
+        ), int((time.perf_counter() - unit_start) * 1000)
     llm_ms += int((time.perf_counter() - llm_start) * 1000)
-    _stage_log("model_request", "end", attempt="initial", ms=llm_ms)
+    _stage_log("model_request", "end", unit=unit, attempt="initial", ms=llm_ms)
 
     parse_norm_start = time.perf_counter()
     validated, parsed, error_response = _parse_and_normalize(raw_response, "initial")
     parse_norm_ms += int((time.perf_counter() - parse_norm_start) * 1000)
     if error_response is not None:
-        return error_response
+        return None, None, error_response, int((time.perf_counter() - unit_start) * 1000)
 
     # Retry once if schema-minimums are violated
     if parsed is not None and _too_empty(parsed):
@@ -313,72 +309,190 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
             "Return JSON only and comply with the schema exactly."
         )
 
-        _stage_log("model_request", "start", attempt="retry_1")
+        _stage_log("model_request", "start", unit=unit, attempt="retry_1")
         llm_start = time.perf_counter()
         try:
             raw_response = await call_with_budget(prompt2)
         except asyncio.TimeoutError:
-            logger.error("model_request_timeout", extra={"attempt": "retry_1"})
-            return _error_json(
+            logger.error("model_request_timeout", extra={"unit": unit, "attempt": "retry_1"})
+            return None, None, _error_json(
                 status_code=504,
                 error="Upstream model call failed",
                 stage="model_call",
                 details="Analysis exceeded time limit on retry.",
-            )
+            ), int((time.perf_counter() - unit_start) * 1000)
         except httpx.HTTPStatusError as exc:
             detail = _truncate_for_log(exc.response.text if exc.response is not None else str(exc))
             logger.error(
                 "model_request_http_status_error",
-                extra={"attempt": "retry_1", "status_code": exc.response.status_code if exc.response else None, "details": detail},
+                extra={"unit": unit, "attempt": "retry_1", "status_code": exc.response.status_code if exc.response else None, "details": detail},
             )
-            return _error_json(
+            return None, None, _error_json(
                 status_code=502,
                 error="Upstream model call failed",
                 stage="model_call",
                 details=detail,
-            )
+            ), int((time.perf_counter() - unit_start) * 1000)
         except UpstreamModelContentError as exc:
             logger.error(
                 "extract_model_text_failed",
-                extra={"attempt": "retry_1", "details": exc.details},
+                extra={"unit": unit, "attempt": "retry_1", "details": exc.details},
             )
-            return _error_json(
+            return None, None, _error_json(
                 status_code=502,
                 error=exc.error,
                 stage=exc.stage,
                 details=exc.details,
-            )
+            ), int((time.perf_counter() - unit_start) * 1000)
         except Exception as exc:
-            logger.exception("model_request_failed", extra={"attempt": "retry_1", "exception_type": type(exc).__name__})
-            return _error_json(
+            logger.exception("model_request_failed", extra={"unit": unit, "attempt": "retry_1", "exception_type": type(exc).__name__})
+            return None, None, _error_json(
                 status_code=502,
                 error="Upstream model call failed",
                 stage="model_call",
                 details=str(exc),
-            )
+            ), int((time.perf_counter() - unit_start) * 1000)
         llm_retry_ms = int((time.perf_counter() - llm_start) * 1000)
         llm_ms += llm_retry_ms
-        _stage_log("model_request", "end", attempt="retry_1", ms=llm_retry_ms)
+        _stage_log("model_request", "end", unit=unit, attempt="retry_1", ms=llm_retry_ms)
 
         parse_norm_start = time.perf_counter()
         validated, parsed, error_response = _parse_and_normalize(raw_response, "retry_1")
         parse_norm_ms += int((time.perf_counter() - parse_norm_start) * 1000)
         if error_response is not None:
-            return error_response
+            return None, None, error_response, int((time.perf_counter() - unit_start) * 1000)
 
     total_ms = int((time.perf_counter() - start_total) * 1000)
     logger.info(
         "analyze_timing",
         extra={
+            "unit": unit,
             "llm_ms": llm_ms,
             "parse_norm_ms": parse_norm_ms,
             "total_ms": total_ms,
         },
     )
+    duration_ms = int((time.perf_counter() - unit_start) * 1000)
+    return validated, parsed, None, duration_ms
 
-    _stage_log("final_response_return", "start")
-    _stage_log("final_response_return", "end", total_ms=total_ms)
-    return validated
+
+async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="Passage text is required.")
+    if len(req.text) > MAX_INPUT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Passage too long. Please shorten the text (max {MAX_INPUT_CHARS} characters).",
+        )
+
+    input_len = len(req.text)
+    _stage_log("analyze_input", "start", input_chars=input_len)
+
+    if input_len <= MAX_ANALYZE_CHARS_PER_CHUNK:
+        validated, _parsed, error_response, _duration_ms = await _run_single_analysis(req.text, "single")
+        if error_response is not None:
+            return error_response
+        if validated is None:
+            return _error_json(
+                status_code=500,
+                error="Structured response normalization failed",
+                stage="normalize_response",
+                details="Single-pass analysis produced no validated response.",
+            )
+        _stage_log("final_response_return", "start", chunked=False)
+        _stage_log("final_response_return", "end", chunked=False)
+        return validated
+
+    chunks = chunk_passage(req.text, MAX_ANALYZE_CHARS_PER_CHUNK, ANALYZE_CHUNK_OVERLAP_CHARS)
+    _stage_log("chunking", "end", input_chars=input_len, chunk_count=len(chunks))
+    logger.info(
+        "chunking_summary",
+        extra={
+            "input_chars": input_len,
+            "max_chunk_chars": MAX_ANALYZE_CHARS_PER_CHUNK,
+            "overlap_chars": ANALYZE_CHUNK_OVERLAP_CHARS,
+            "chunk_count": len(chunks),
+        },
+    )
+
+    results: List[Dict[str, Any]] = []
+    chunk_summaries: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+    failed_chunks = 0
+    chunk_total_start = time.perf_counter()
+
+    for i, chunk in enumerate(chunks, start=1):
+        _stage_log("chunk_analysis", "start", chunk_id=chunk.id, chunk_index=i, chunk_count=len(chunks))
+        validated, _parsed, error_response, duration_ms = await _run_single_analysis(chunk.text, f"chunk:{chunk.id}")
+        if error_response is not None or validated is None:
+            failed_chunks += 1
+            warning = f"Chunk {i} failed during analysis"
+            warnings.append(warning)
+            logger.warning(
+                "chunk_analysis_failed",
+                extra={
+                    "chunk_id": chunk.id,
+                    "chunk_index": i,
+                    "duration_ms": duration_ms,
+                },
+            )
+            continue
+
+        payload = validated.model_dump(by_alias=True)
+        results.append(payload)
+        chunk_summaries.append(
+            {
+                "id": chunk.id,
+                "range": f"chars {chunk.start_char}-{chunk.end_char}",
+                "overview_summary": validated.overview_summary,
+                "confidence": validated.confidence,
+            }
+        )
+        _stage_log("chunk_analysis", "end", chunk_id=chunk.id, chunk_index=i, duration_ms=duration_ms)
+
+    total_chunk_ms = int((time.perf_counter() - chunk_total_start) * 1000)
+    logger.info(
+        "chunk_analysis_summary",
+        extra={
+            "chunk_count": len(chunks),
+            "success_count": len(results),
+            "failed_count": failed_chunks,
+            "total_chunk_ms": total_chunk_ms,
+        },
+    )
+
+    if not chunks or failed_chunks / max(1, len(chunks)) > 0.5:
+        return _error_json(
+            status_code=502,
+            error="Too many chunks failed during analysis",
+            stage="chunk_analysis",
+            details=f"{failed_chunks}/{len(chunks)} chunks failed.",
+        )
+
+    merged = merge_chunk_results(results)
+    merged["chunked"] = True
+    merged["chunk_count"] = len(chunks)
+    merged["chunks"] = chunk_summaries
+    if warnings:
+        merged["_warnings"] = warnings
+
+    try:
+        final = AnalysisResponse(**merged)
+    except ValidationError as exc:
+        logger.error(
+            "chunk_merge_validation_failed",
+            extra={"validation_errors": exc.errors(), "failed_count": failed_chunks, "chunk_count": len(chunks)},
+        )
+        return _error_json(
+            status_code=500,
+            error="Structured response normalization failed",
+            stage="normalize_response",
+            details="Chunk merge output failed response validation.",
+        )
+
+    _stage_log("final_response_return", "start", chunked=True)
+    _stage_log("final_response_return", "end", chunked=True, chunk_count=len(chunks), total_chunk_ms=total_chunk_ms)
+    return final
 
 
 # Keep your original endpoint

@@ -1,7 +1,7 @@
 # api/app/models.py
 
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AnalyzeRequest(BaseModel):
@@ -85,7 +85,7 @@ class BestChiasm(BaseModel):
 
 
 class StructureResult(BaseModel):
-    detected: Literal["chiasm", "parallelism", "none"]
+    detected: Literal["chiasm", "parallelism", "none", "composite"]
     confidence: Literal["high", "medium", "low"]
 
     lines: List[StructureLine] = Field(default_factory=list)
@@ -121,9 +121,20 @@ class NarrativeFlowResult(BaseModel):
     scenes: List[NarrativeScene] = Field(default_factory=list)
 
 
+# -------- Chunk Metadata --------
+
+class ChunkSummary(BaseModel):
+    id: str
+    range: str
+    overview_summary: str
+    confidence: Literal["high", "medium", "low"]
+
+
 # -------- Main Analysis Response --------
 
 class AnalysisResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     structure: StructureResult
     narrative_flow: NarrativeFlowResult
 
@@ -144,3 +155,8 @@ class AnalysisResponse(BaseModel):
     notable_alternatives: List[str] = Field(default_factory=list)
 
     application: List[str] = Field(default_factory=list)
+
+    chunked: bool = False
+    chunk_count: Optional[int] = None
+    chunks: List[ChunkSummary] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list, alias="_warnings", serialization_alias="_warnings")
