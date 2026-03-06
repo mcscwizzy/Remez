@@ -2,7 +2,7 @@ import os
 import httpx
 import json
 import logging
-from typing import Any
+from typing import Any, Dict
 
 AZURE_AI_ENDPOINT = os.getenv(
     "AZURE_AI_ENDPOINT",
@@ -16,15 +16,8 @@ AZURE_AI_API_KEY = os.getenv("AZURE_AI_API_KEY", "")
 AZURE_AI_API_VERSION = os.getenv("AZURE_AI_API_VERSION", "2024-10-21")
 LLM_HTTP_TIMEOUT_SEC = float(os.getenv("LLM_HTTP_TIMEOUT_SEC", "240"))
 UPSTREAM_LOG_CHARS = int(os.getenv("UPSTREAM_LOG_CHARS", "1500"))
+EXTRACTOR_PREVIEW_CHARS = int(os.getenv("EXTRACTOR_PREVIEW_CHARS", "500"))
 logger = logging.getLogger("remez")
-
-
-class UpstreamModelContentError(Exception):
-    def __init__(self, error: str, stage: str = "extract_model_text", details: str | None = None):
-        super().__init__(error)
-        self.error = error
-        self.stage = stage
-        self.details = details
 
 
 def _truncate(value: str, limit: int = UPSTREAM_LOG_CHARS) -> str:
@@ -50,132 +43,147 @@ def _payload_shape(payload: Any) -> dict[str, Any]:
     return shape
 
 
-def _part_text(part: Any) -> str:
-    if isinstance(part, str):
-        return part
-    if not isinstance(part, dict):
+def _preview(value: Any, limit: int = EXTRACTOR_PREVIEW_CHARS) -> str:
+    try:
+        text = repr(value)
+    except Exception:
+        text = f"<unrepr:{type(value).__name__}>"
+    return _truncate(text, limit=limit)
+
+
+def _content_debug(content: Any) -> Dict[str, Any]:
+    debug: Dict[str, Any] = {
+        "content_type": type(content).__name__,
+        "content_repr": _preview(content),
+    }
+    if isinstance(content, list):
+        debug["list_len"] = len(content)
+        if content:
+            debug["first_item_type"] = type(content[0]).__name__
+            debug["first_item_repr"] = _preview(content[0])
+    elif isinstance(content, dict):
+        debug["dict_keys"] = sorted([str(k) for k in content.keys()])[:30]
+    elif content is not None and hasattr(content, "__dict__"):
+        debug["object_attrs"] = sorted([str(k) for k in vars(content).keys()])[:30]
+    return debug
+
+
+def _extract_text_candidate(value: Any, depth: int = 0) -> str:
+    if depth > 3:
         return ""
-
-    text = part.get("text")
-    if isinstance(text, str):
-        return text
-    if isinstance(text, dict):
-        val = text.get("value")
-        if isinstance(val, str):
-            return val
-
-    # Some providers may use "content" for textual blocks.
-    content = part.get("content")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, dict):
-        val = content.get("value")
-        if isinstance(val, str):
-            return val
-
+    if isinstance(value, str):
+        return value
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        parts = [_extract_text_candidate(v, depth + 1).strip() for v in value]
+        parts = [p for p in parts if p]
+        return "\n".join(parts)
+    if isinstance(value, dict):
+        preferred = ["text", "content", "value", "output_text", "message", "body"]
+        for key in preferred:
+            if key in value:
+                hit = _extract_text_candidate(value.get(key), depth + 1).strip()
+                if hit:
+                    return hit
+        for item in value.values():
+            hit = _extract_text_candidate(item, depth + 1).strip()
+            if hit:
+                return hit
+        return ""
+    for attr in ("text", "content", "value"):
+        if hasattr(value, attr):
+            hit = _extract_text_candidate(getattr(value, attr), depth + 1).strip()
+            if hit:
+                return hit
     return ""
 
 
-def extract_text_from_response(payload: Any) -> str:
+def extract_text_from_response(payload: Any) -> Dict[str, Any]:
     shape = _payload_shape(payload)
     choices = payload.get("choices") if isinstance(payload, dict) else None
     if not isinstance(choices, list) or not choices:
         logger.error("extract_model_text_failed", extra={"reason": "missing_choices", "shape": shape})
-        raise UpstreamModelContentError(
-            error="Upstream model returned non-text content",
-            details="Response missing choices.",
-        )
+        return {
+            "ok": False,
+            "error": "Upstream model returned unsupported content shape",
+            "stage": "extract_model_text",
+            "content_type": type(choices).__name__,
+            "details": "Response missing choices.",
+        }
 
     first = choices[0] if isinstance(choices[0], dict) else None
     message = first.get("message") if isinstance(first, dict) else None
     if not isinstance(message, dict):
         logger.error("extract_model_text_failed", extra={"reason": "missing_message", "shape": shape})
-        raise UpstreamModelContentError(
-            error="Upstream model returned non-text content",
-            details="Response missing message block.",
-        )
+        return {
+            "ok": False,
+            "error": "Upstream model returned unsupported content shape",
+            "stage": "extract_model_text",
+            "content_type": type(message).__name__,
+            "details": "Response missing message block.",
+        }
 
     content = message.get("content")
+    content_debug = _content_debug(content)
     logger.info(
         "extract_model_text_content_type",
-        extra={"content_type": type(content).__name__, "shape": shape},
+        extra={"shape": shape, **content_debug},
     )
 
-    if isinstance(content, str):
-        text = content.strip()
-        if text:
-            return content
-        logger.error("extract_model_text_failed", extra={"reason": "empty_string_content", "shape": shape})
-        raise UpstreamModelContentError(
-            error="Upstream model returned non-text content",
-            details="Message content was empty.",
+    extracted = _extract_text_candidate(content).strip()
+    if extracted:
+        logger.info(
+            "extract_model_text_success",
+            extra={"extracted_text_len": len(extracted), "content_type": type(content).__name__},
         )
-
-    if isinstance(content, list):
-        text_parts = []
-        for part in content:
-            maybe = _part_text(part).strip()
-            if maybe:
-                text_parts.append(maybe)
-        if text_parts:
-            return "\n".join(text_parts)
-        payload_snippet = _truncate(json.dumps(payload, ensure_ascii=False))
-        logger.error(
-            "extract_model_text_failed",
-            extra={"reason": "no_text_parts", "shape": shape, "payload_snippet": payload_snippet},
-        )
-        raise UpstreamModelContentError(
-            error="Upstream model returned non-text content",
-            details="Message content parts had no text.",
-        )
+        return {"ok": True, "content": extracted}
 
     payload_snippet = _truncate(json.dumps(payload, ensure_ascii=False))
     logger.error(
         "extract_model_text_failed",
-        extra={"reason": "unsupported_content_shape", "shape": shape, "payload_snippet": payload_snippet},
+        extra={"reason": "empty_or_unsupported_content", "shape": shape, **content_debug, "payload_snippet": payload_snippet},
     )
-    raise UpstreamModelContentError(
-        error="Upstream model returned non-text content",
-        details="Message content was not a supported text shape.",
-    )
+    return {
+        "ok": False,
+        "error": "Upstream model returned unsupported content shape",
+        "stage": "extract_model_text",
+        "content_type": type(content).__name__,
+        "details": "Message content was empty or not text-bearing.",
+    }
 
 
 def _extract_text_guard_cases() -> None:
     # Lightweight inline guards for common provider response shapes.
-    assert (
-        extract_text_from_response({"choices": [{"message": {"content": "{\"ok\":true}"}}]})
-        == "{\"ok\":true}"
-    )
-    assert (
-        extract_text_from_response(
-            {
-                "choices": [
-                    {
-                        "message": {
-                            "content": [
-                                {"type": "text", "text": "{\"a\":1}"},
-                                {"type": "other", "metadata": 1},
-                                {"type": "output_text", "text": {"value": "{\"b\":2}"}},
-                            ]
-                        }
+    r1 = extract_text_from_response({"choices": [{"message": {"content": "{\"ok\":true}"}}]})
+    assert r1.get("ok") is True and r1.get("content") == "{\"ok\":true}"
+
+    r2 = extract_text_from_response(
+        {
+            "choices": [
+                {
+                    "message": {
+                        "content": [
+                            {"type": "text", "text": "{\"a\":1}"},
+                            {"type": "other", "metadata": 1},
+                            {"type": "output_text", "text": {"value": "{\"b\":2}"}},
+                        ]
                     }
-                ]
-            }
-        )
-        == "{\"a\":1}\n{\"b\":2}"
+                }
+            ]
+        }
     )
-    try:
-        extract_text_from_response({"choices": [{"message": {"content": []}}]})
-        raise AssertionError("Expected UpstreamModelContentError for empty content list.")
-    except UpstreamModelContentError:
-        pass
+    assert r2.get("ok") is True and r2.get("content") == "{\"a\":1}\n{\"b\":2}"
+
+    r3 = extract_text_from_response({"choices": [{"message": {"content": []}}]})
+    assert r3.get("ok") is False and r3.get("stage") == "extract_model_text"
 
 
 if os.getenv("AZURE_FOUNDRY_RUN_GUARDS", "0") == "1":
     _extract_text_guard_cases()
 
 
-async def call_azure_foundry(prompt: str) -> str:
+async def call_azure_foundry(prompt: str) -> Dict[str, Any]:
     timeout = httpx.Timeout(LLM_HTTP_TIMEOUT_SEC)
     if not AZURE_AI_API_KEY:
         raise RuntimeError("AZURE_AI_API_KEY is not set.")
@@ -213,5 +221,11 @@ async def call_azure_foundry(prompt: str) -> str:
                     detail = f"{code}: {detail}"
             else:
                 detail = str(err)
-            raise RuntimeError(f"Upstream model error payload: {detail}")
+            return {
+                "ok": False,
+                "error": "Upstream model call failed",
+                "stage": "model_call",
+                "details": detail,
+                "content_type": "error_payload",
+            }
         return extract_text_from_response(payload)

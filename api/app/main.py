@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from .models import AnalyzeRequest, AnalysisResponse
 from .prompts import build_prompt
-from .services.azure_foundry import call_azure_foundry, UpstreamModelContentError
+from .services.azure_foundry import call_azure_foundry
 from .services.normalizer import normalize_llm_output
 from .services.chunking import chunk_passage
 from .services.merge import merge_chunk_results
@@ -242,14 +242,14 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
     llm_ms = 0
     parse_norm_ms = 0
 
-    async def call_with_budget(prompt_text: str) -> str:
+    async def call_with_budget(prompt_text: str) -> Dict[str, Any]:
         remaining = max(1.0, MAX_WALL_TIME_SEC - (time.perf_counter() - start_total))
         return await asyncio.wait_for(call_azure_foundry(prompt_text), timeout=remaining)
 
     _stage_log("model_request", "start", unit=unit, attempt="initial")
     llm_start = time.perf_counter()
     try:
-        raw_response = await call_with_budget(prompt)
+        model_result = await call_with_budget(prompt)
     except asyncio.TimeoutError:
         logger.error("model_request_timeout", extra={"unit": unit, "attempt": "initial"})
         return None, None, _error_json(
@@ -270,17 +270,6 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
             stage="model_call",
             details=detail,
         ), int((time.perf_counter() - unit_start) * 1000)
-    except UpstreamModelContentError as exc:
-        logger.error(
-            "extract_model_text_failed",
-            extra={"unit": unit, "attempt": "initial", "details": exc.details},
-        )
-        return None, None, _error_json(
-            status_code=502,
-            error=exc.error,
-            stage=exc.stage,
-            details=exc.details,
-        ), int((time.perf_counter() - unit_start) * 1000)
     except Exception as exc:
         logger.exception("model_request_failed", extra={"unit": unit, "attempt": "initial", "exception_type": type(exc).__name__})
         return None, None, _error_json(
@@ -289,6 +278,23 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
             stage="model_call",
             details=str(exc),
         ), int((time.perf_counter() - unit_start) * 1000)
+
+    if not model_result.get("ok"):
+        stage = str(model_result.get("stage", "model_call"))
+        details = str(model_result.get("details", ""))
+        content_type = str(model_result.get("content_type", "unknown"))
+        logger.error(
+            "model_request_result_error",
+            extra={"unit": unit, "attempt": "initial", "stage": stage, "content_type": content_type, "details": details},
+        )
+        return None, None, _error_json(
+            status_code=502,
+            error=str(model_result.get("error", "Upstream model call failed")),
+            stage=stage,
+            details=details or None,
+        ), int((time.perf_counter() - unit_start) * 1000)
+
+    raw_response = str(model_result.get("content", ""))
     llm_ms += int((time.perf_counter() - llm_start) * 1000)
     _stage_log("model_request", "end", unit=unit, attempt="initial", ms=llm_ms)
 
@@ -312,7 +318,7 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
         _stage_log("model_request", "start", unit=unit, attempt="retry_1")
         llm_start = time.perf_counter()
         try:
-            raw_response = await call_with_budget(prompt2)
+            model_result = await call_with_budget(prompt2)
         except asyncio.TimeoutError:
             logger.error("model_request_timeout", extra={"unit": unit, "attempt": "retry_1"})
             return None, None, _error_json(
@@ -333,17 +339,6 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
                 stage="model_call",
                 details=detail,
             ), int((time.perf_counter() - unit_start) * 1000)
-        except UpstreamModelContentError as exc:
-            logger.error(
-                "extract_model_text_failed",
-                extra={"unit": unit, "attempt": "retry_1", "details": exc.details},
-            )
-            return None, None, _error_json(
-                status_code=502,
-                error=exc.error,
-                stage=exc.stage,
-                details=exc.details,
-            ), int((time.perf_counter() - unit_start) * 1000)
         except Exception as exc:
             logger.exception("model_request_failed", extra={"unit": unit, "attempt": "retry_1", "exception_type": type(exc).__name__})
             return None, None, _error_json(
@@ -352,6 +347,23 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
                 stage="model_call",
                 details=str(exc),
             ), int((time.perf_counter() - unit_start) * 1000)
+
+        if not model_result.get("ok"):
+            stage = str(model_result.get("stage", "model_call"))
+            details = str(model_result.get("details", ""))
+            content_type = str(model_result.get("content_type", "unknown"))
+            logger.error(
+                "model_request_result_error",
+                extra={"unit": unit, "attempt": "retry_1", "stage": stage, "content_type": content_type, "details": details},
+            )
+            return None, None, _error_json(
+                status_code=502,
+                error=str(model_result.get("error", "Upstream model call failed")),
+                stage=stage,
+                details=details or None,
+            ), int((time.perf_counter() - unit_start) * 1000)
+
+        raw_response = str(model_result.get("content", ""))
         llm_retry_ms = int((time.perf_counter() - llm_start) * 1000)
         llm_ms += llm_retry_ms
         _stage_log("model_request", "end", unit=unit, attempt="retry_1", ms=llm_retry_ms)
