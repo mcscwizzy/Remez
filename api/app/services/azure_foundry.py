@@ -1,5 +1,6 @@
 import os
 import httpx
+import json
 
 AZURE_AI_ENDPOINT = os.getenv(
     "AZURE_AI_ENDPOINT",
@@ -41,4 +42,26 @@ async def call_azure_foundry(prompt: str) -> str:
 
         response.raise_for_status()
         payload = response.json()
-        return payload["choices"][0]["message"]["content"]
+
+        if isinstance(payload, dict) and "error" in payload:
+            err = payload.get("error")
+            if isinstance(err, dict):
+                message = str(err.get("message", "")).strip()
+                code = str(err.get("code", "")).strip()
+                detail = message or json.dumps(err, ensure_ascii=False)[:500]
+                if code:
+                    detail = f"{code}: {detail}"
+            else:
+                detail = str(err)
+            raise RuntimeError(f"Upstream model error payload: {detail}")
+
+        choices = payload.get("choices") if isinstance(payload, dict) else None
+        if not isinstance(choices, list) or not choices:
+            raise RuntimeError("Upstream model response missing choices.")
+        message = choices[0].get("message") if isinstance(choices[0], dict) else None
+        if not isinstance(message, dict):
+            raise RuntimeError("Upstream model response missing message content.")
+        content = message.get("content")
+        if not isinstance(content, str):
+            raise RuntimeError("Upstream model response content is not text.")
+        return content
