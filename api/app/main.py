@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from .models import AnalyzeRequest, AnalysisResponse
 from .prompts import build_prompt
-from .services.azure_foundry import call_azure_foundry
+from .services.azure_foundry import call_azure_foundry, UpstreamModelContentError
 from .services.normalizer import normalize_llm_output
 import json
 import os
@@ -274,6 +274,17 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
             stage="model_call",
             details=detail,
         )
+    except UpstreamModelContentError as exc:
+        logger.error(
+            "extract_model_text_failed",
+            extra={"attempt": "initial", "details": exc.details},
+        )
+        return _error_json(
+            status_code=502,
+            error=exc.error,
+            stage=exc.stage,
+            details=exc.details,
+        )
     except Exception as exc:
         logger.exception("model_request_failed", extra={"attempt": "initial", "exception_type": type(exc).__name__})
         return _error_json(
@@ -325,6 +336,17 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
                 error="Upstream model call failed",
                 stage="model_call",
                 details=detail,
+            )
+        except UpstreamModelContentError as exc:
+            logger.error(
+                "extract_model_text_failed",
+                extra={"attempt": "retry_1", "details": exc.details},
+            )
+            return _error_json(
+                status_code=502,
+                error=exc.error,
+                stage=exc.stage,
+                details=exc.details,
             )
         except Exception as exc:
             logger.exception("model_request_failed", extra={"attempt": "retry_1", "exception_type": type(exc).__name__})
