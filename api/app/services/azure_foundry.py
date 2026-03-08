@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 AZURE_AI_ENDPOINT = os.getenv(
     "AZURE_AI_ENDPOINT",
-    "https://remez-dev-foundry-resource.openai.azure.com/openai/deployments/gpt-5-mini/chat/completions?api-version=2024-10-21",
+    "https://remez-dev-foundry-resource.openai.azure.com",
 )
 AZURE_AI_DEPLOYMENT = os.getenv(
     "AZURE_AI_DEPLOYMENT",
@@ -80,7 +80,17 @@ def _extract_text_candidate(value: Any, depth: int = 0) -> str:
         parts = [p for p in parts if p]
         return "\n".join(parts)
     if isinstance(value, dict):
-        preferred = ["text", "content", "value", "output_text", "message", "body"]
+        preferred = [
+            "text",
+            "content",
+            "value",
+            "output_text",
+            "output",
+            "outputs",
+            "input_text",
+            "message",
+            "body",
+        ]
         for key in preferred:
             if key in value:
                 hit = _extract_text_candidate(value.get(key), depth + 1).strip()
@@ -91,7 +101,7 @@ def _extract_text_candidate(value: Any, depth: int = 0) -> str:
             if hit:
                 return hit
         return ""
-    for attr in ("text", "content", "value"):
+    for attr in ("text", "content", "value", "output_text", "message"):
         if hasattr(value, attr):
             hit = _extract_text_candidate(getattr(value, attr), depth + 1).strip()
             if hit:
@@ -114,6 +124,7 @@ def extract_text_from_response(payload: Any) -> Dict[str, Any]:
 
     first = choices[0] if isinstance(choices[0], dict) else None
     message = first.get("message") if isinstance(first, dict) else None
+    finish_reason = first.get("finish_reason") if isinstance(first, dict) else None
     if not isinstance(message, dict):
         logger.error("extract_model_text_failed", extra={"reason": "missing_message", "shape": shape})
         return {
@@ -125,31 +136,73 @@ def extract_text_from_response(payload: Any) -> Dict[str, Any]:
         }
 
     content = message.get("content")
+    refusal = message.get("refusal")
+    message_keys = sorted([str(k) for k in message.keys()])[:30]
     content_debug = _content_debug(content)
     logger.info(
-        "extract_model_text_content_type",
-        extra={"shape": shape, **content_debug},
+        "extract_model_text_content_inspect",
+        extra={
+            "finish_reason": finish_reason,
+            "message_keys": message_keys,
+            **content_debug,
+        },
     )
 
     extracted = _extract_text_candidate(content).strip()
     if extracted:
         logger.info(
             "extract_model_text_success",
-            extra={"extracted_text_len": len(extracted), "content_type": type(content).__name__},
+            extra={
+                "finish_reason": finish_reason,
+                "message_keys": message_keys,
+                "content_type": type(content).__name__,
+                "extracted_text_len": len(extracted),
+            },
         )
         return {"ok": True, "content": extracted}
+
+    if refusal:
+        refusal_text = _extract_text_candidate(refusal).strip() if refusal else ""
+        refusal_preview = _truncate(refusal_text or _preview(refusal), limit=EXTRACTOR_PREVIEW_CHARS)
+        logger.warning(
+            "extract_model_text_refusal",
+            extra={
+                "finish_reason": finish_reason,
+                "message_keys": message_keys,
+                "content_type": type(content).__name__,
+                "refusal_preview": refusal_preview,
+            },
+        )
+        return {
+            "ok": False,
+            "error": "Upstream model refused the request",
+            "stage": "extract_model_text",
+            "content_type": type(content).__name__,
+            "finish_reason": finish_reason,
+            "message_keys": message_keys,
+            "details": refusal_preview or "Refusal returned with empty content.",
+        }
 
     payload_snippet = _truncate(json.dumps(payload, ensure_ascii=False))
     logger.error(
         "extract_model_text_failed",
-        extra={"reason": "empty_or_unsupported_content", "shape": shape, **content_debug, "payload_snippet": payload_snippet},
+        extra={
+            "reason": "empty_or_unsupported_content",
+            "finish_reason": finish_reason,
+            "message_keys": message_keys,
+            **content_debug,
+            "payload_snippet": payload_snippet,
+        },
     )
     return {
         "ok": False,
         "error": "Upstream model returned unsupported content shape",
         "stage": "extract_model_text",
         "content_type": type(content).__name__,
+        "finish_reason": finish_reason,
+        "message_keys": message_keys,
         "details": "Message content was empty or not text-bearing.",
+        "content_preview": _preview(content),
     }
 
 
