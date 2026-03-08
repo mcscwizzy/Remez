@@ -170,6 +170,8 @@ class AnalysisResponse(BaseModel):
 
     chunked: bool = False
     chunk_count: Optional[int] = None
+    chunk_success_count: Optional[int] = None
+    chunk_failure_count: Optional[int] = None
     chunk_summaries: List[ChunkSummary] = Field(default_factory=list)
     chapter_flow_summary: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list, alias="_warnings", serialization_alias="_warnings")

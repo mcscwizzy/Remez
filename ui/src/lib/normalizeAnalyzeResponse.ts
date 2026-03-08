@@ -102,6 +102,8 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
     key_terms: asArray(api.key_terms, []),
     chunked: Boolean(api.chunked),
     chunk_count: typeof api.chunk_count === "number" ? api.chunk_count : undefined,
+    chunk_success_count: typeof api.chunk_success_count === "number" ? api.chunk_success_count : undefined,
+    chunk_failure_count: typeof api.chunk_failure_count === "number" ? api.chunk_failure_count : undefined,
     chunk_summaries: asArray(api.chunk_summaries, []),
     chapter_flow_summary: asArray<string>(api.chapter_flow_summary, []),
     warnings: asArray<string>(api._warnings, []),

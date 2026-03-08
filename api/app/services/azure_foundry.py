@@ -110,16 +110,18 @@ def _extract_text_candidate(value: Any, depth: int = 0) -> str:
 
 
 def extract_text_from_response(payload: Any) -> Dict[str, Any]:
+    logger.info("extract_model_text_started", extra={"payload_type": type(payload).__name__})
     shape = _payload_shape(payload)
     choices = payload.get("choices") if isinstance(payload, dict) else None
     if not isinstance(choices, list) or not choices:
         logger.error("extract_model_text_failed", extra={"reason": "missing_choices", "shape": shape})
         return {
             "ok": False,
+            "text": None,
             "error": "Upstream model returned unsupported content shape",
             "stage": "extract_model_text",
             "content_type": type(choices).__name__,
-            "details": "Response missing choices.",
+            "details": {"reason": "missing_choices"},
         }
 
     first = choices[0] if isinstance(choices[0], dict) else None
@@ -129,10 +131,11 @@ def extract_text_from_response(payload: Any) -> Dict[str, Any]:
         logger.error("extract_model_text_failed", extra={"reason": "missing_message", "shape": shape})
         return {
             "ok": False,
+            "text": None,
             "error": "Upstream model returned unsupported content shape",
             "stage": "extract_model_text",
             "content_type": type(message).__name__,
-            "details": "Response missing message block.",
+            "details": {"reason": "missing_message"},
         }
 
     content = message.get("content")
@@ -159,7 +162,17 @@ def extract_text_from_response(payload: Any) -> Dict[str, Any]:
                 "extracted_text_len": len(extracted),
             },
         )
-        return {"ok": True, "content": extracted}
+        return {
+            "ok": True,
+            "text": extracted,
+            "error": None,
+            "content_type": type(content).__name__,
+            "details": {
+                "finish_reason": finish_reason,
+                "message_keys": message_keys,
+                "extracted_text_len": len(extracted),
+            },
+        }
 
     if refusal:
         refusal_text = _extract_text_candidate(refusal).strip() if refusal else ""
@@ -175,12 +188,15 @@ def extract_text_from_response(payload: Any) -> Dict[str, Any]:
         )
         return {
             "ok": False,
+            "text": None,
             "error": "Upstream model refused the request",
             "stage": "extract_model_text",
             "content_type": type(content).__name__,
-            "finish_reason": finish_reason,
-            "message_keys": message_keys,
-            "details": refusal_preview or "Refusal returned with empty content.",
+            "details": {
+                "finish_reason": finish_reason,
+                "message_keys": message_keys,
+                "refusal_preview": refusal_preview or "Refusal returned with empty content.",
+            },
         }
 
     payload_snippet = _truncate(json.dumps(payload, ensure_ascii=False))
@@ -196,20 +212,23 @@ def extract_text_from_response(payload: Any) -> Dict[str, Any]:
     )
     return {
         "ok": False,
+        "text": None,
         "error": "Upstream model returned unsupported content shape",
         "stage": "extract_model_text",
         "content_type": type(content).__name__,
-        "finish_reason": finish_reason,
-        "message_keys": message_keys,
-        "details": "Message content was empty or not text-bearing.",
-        "content_preview": _preview(content),
+        "details": {
+            "finish_reason": finish_reason,
+            "message_keys": message_keys,
+            "content_preview": _preview(content),
+            "payload_preview": payload_snippet,
+        },
     }
 
 
 def _extract_text_guard_cases() -> None:
     # Lightweight inline guards for common provider response shapes.
     r1 = extract_text_from_response({"choices": [{"message": {"content": "{\"ok\":true}"}}]})
-    assert r1.get("ok") is True and r1.get("content") == "{\"ok\":true}"
+    assert r1.get("ok") is True and r1.get("text") == "{\"ok\":true}"
 
     r2 = extract_text_from_response(
         {
@@ -226,7 +245,7 @@ def _extract_text_guard_cases() -> None:
             ]
         }
     )
-    assert r2.get("ok") is True and r2.get("content") == "{\"a\":1}\n{\"b\":2}"
+    assert r2.get("ok") is True and r2.get("text") == "{\"a\":1}\n{\"b\":2}"
 
     r3 = extract_text_from_response({"choices": [{"message": {"content": []}}]})
     assert r3.get("ok") is False and r3.get("stage") == "extract_model_text"
@@ -276,9 +295,10 @@ async def call_azure_foundry(prompt: str) -> Dict[str, Any]:
                 detail = str(err)
             return {
                 "ok": False,
+                "text": None,
                 "error": "Upstream model call failed",
                 "stage": "model_call",
-                "details": detail,
+                "details": {"message": detail},
                 "content_type": "error_payload",
             }
         return extract_text_from_response(payload)

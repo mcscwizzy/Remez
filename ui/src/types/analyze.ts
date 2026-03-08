@@ -36,6 +36,8 @@ export interface ApiAnalyzeResponse {
   notable_alternatives?: string[];
   chunked?: boolean;
   chunk_count?: number;
+  chunk_success_count?: number;
+  chunk_failure_count?: number;
   chunk_summaries?: ApiChunkSummary[];
   chapter_flow_summary?: string[];
   _warnings?: string[];
@@ -167,6 +169,8 @@ export interface UiAnalyzeResponse {
   key_terms?: ApiKeyTerm[];
   chunked?: boolean;
   chunk_count?: number;
+  chunk_success_count?: number;
+  chunk_failure_count?: number;
   chunk_summaries?: ApiChunkSummary[];
   chapter_flow_summary?: string[];
   warnings?: string[];

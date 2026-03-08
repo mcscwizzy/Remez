@@ -39,9 +39,11 @@ app.add_middleware(
 
 MAX_WALL_TIME_SEC = float(os.getenv("MAX_WALL_TIME_SEC", "240"))
 MAX_INPUT_CHARS = int(os.getenv("MAX_INPUT_CHARS", "12000"))
+MAX_ANALYZE_INPUT_CHARS = int(os.getenv("MAX_ANALYZE_INPUT_CHARS", str(MAX_INPUT_CHARS)))
 RAW_LOG_CHARS = int(os.getenv("RAW_LOG_CHARS", "3000"))
 MAX_ANALYZE_CHARS_PER_CHUNK = int(os.getenv("MAX_ANALYZE_CHARS_PER_CHUNK", "2500"))
 ANALYZE_CHUNK_OVERLAP_CHARS = int(os.getenv("ANALYZE_CHUNK_OVERLAP_CHARS", "250"))
+MAX_CHUNK_FAILURE_RATIO = float(os.getenv("MAX_CHUNK_FAILURE_RATIO", "0.5"))
 
 
 @app.middleware("http")
@@ -99,7 +101,7 @@ def _stage_log(stage: str, status: str, **kwargs: Any) -> None:
     logger.info("analyze_stage", extra=payload)
 
 
-def _error_json(status_code: int, error: str, stage: str, details: str | None = None) -> JSONResponse:
+def _error_json(status_code: int, error: str, stage: str, details: Any | None = None) -> JSONResponse:
     payload: Dict[str, Any] = {"error": error, "stage": stage}
     if details is not None:
         payload["details"] = details
@@ -282,7 +284,7 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
 
     if not model_result.get("ok"):
         stage = str(model_result.get("stage", "model_call"))
-        details = str(model_result.get("details", ""))
+        details = model_result.get("details", "")
         content_type = str(model_result.get("content_type", "unknown"))
         logger.error(
             "model_request_result_error",
@@ -295,7 +297,7 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
             details=details or None,
         ), int((time.perf_counter() - unit_start) * 1000)
 
-    raw_response = str(model_result.get("content", ""))
+    raw_response = str(model_result.get("text", ""))
     llm_ms += int((time.perf_counter() - llm_start) * 1000)
     _stage_log("model_request", "end", unit=unit, attempt="initial", ms=llm_ms)
 
@@ -351,7 +353,7 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
 
         if not model_result.get("ok"):
             stage = str(model_result.get("stage", "model_call"))
-            details = str(model_result.get("details", ""))
+            details = model_result.get("details", "")
             content_type = str(model_result.get("content_type", "unknown"))
             logger.error(
                 "model_request_result_error",
@@ -364,7 +366,7 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
                 details=details or None,
             ), int((time.perf_counter() - unit_start) * 1000)
 
-        raw_response = str(model_result.get("content", ""))
+        raw_response = str(model_result.get("text", ""))
         llm_retry_ms = int((time.perf_counter() - llm_start) * 1000)
         llm_ms += llm_retry_ms
         _stage_log("model_request", "end", unit=unit, attempt="retry_1", ms=llm_retry_ms)
@@ -390,6 +392,7 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
 
 
 async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
+    request_start = time.perf_counter()
     source_mode = req.source_mode
     if not source_mode:
         if req.text and req.text.strip() and not (req.reference and req.reference.strip()):
@@ -434,16 +437,16 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
             }
         )
 
-    if len(resolved_text) > MAX_INPUT_CHARS:
+    if len(resolved_text) > MAX_ANALYZE_INPUT_CHARS:
         return _error_json(
             status_code=413,
-            error="Passage too long.",
+            error="Passage too long for analysis in the current mode. Try a smaller section.",
             stage="validation",
-            details=f"Please shorten the text (max {MAX_INPUT_CHARS} characters).",
+            details=f"Please shorten the text (max {MAX_ANALYZE_INPUT_CHARS} characters).",
         )
 
     input_len = len(resolved_text)
-    _stage_log("analyze_input", "start", input_chars=input_len, source_mode=source_mode)
+    _stage_log("analyze_request", "start", input_chars=input_len, source_mode=source_mode)
 
     if input_len <= MAX_ANALYZE_CHARS_PER_CHUNK:
         validated, _parsed, error_response, _duration_ms = await _run_single_analysis(resolved_text, "single")
@@ -457,7 +460,12 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
                 details="Single-pass analysis produced no validated response.",
             )
         _stage_log("final_response_return", "start", chunked=False)
-        _stage_log("final_response_return", "end", chunked=False)
+        _stage_log(
+            "final_response_return",
+            "end",
+            chunked=False,
+            total_ms=int((time.perf_counter() - request_start) * 1000),
+        )
         return validated.model_copy(update=response_meta)
 
     chunks = chunk_passage(resolved_text, MAX_ANALYZE_CHARS_PER_CHUNK, ANALYZE_CHUNK_OVERLAP_CHARS)
@@ -479,11 +487,27 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
     chunk_total_start = time.perf_counter()
 
     for i, chunk in enumerate(chunks, start=1):
-        _stage_log("chunk_analysis", "start", chunk_id=chunk.id, chunk_index=i, chunk_count=len(chunks))
+        _stage_log(
+            "chunk_analysis",
+            "start",
+            chunk_id=chunk.id,
+            chunk_index=i,
+            chunk_count=len(chunks),
+            chunk_chars=len(chunk.text),
+        )
         validated, _parsed, error_response, duration_ms = await _run_single_analysis(chunk.text, f"chunk:{chunk.id}")
         if error_response is not None or validated is None:
             failed_chunks += 1
-            warning = f"Chunk {i} failed during analysis"
+            stage = "analysis"
+            if error_response is not None:
+                try:
+                    body = getattr(error_response, "body", b"")
+                    if isinstance(body, (bytes, bytearray)):
+                        payload = json.loads(body.decode("utf-8"))
+                        stage = str(payload.get("stage") or stage)
+                except Exception:
+                    stage = stage
+            warning = f"Chunk {i} failed during {stage}"
             warnings.append(warning)
             logger.warning(
                 "chunk_analysis_failed",
@@ -491,6 +515,7 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
                     "chunk_id": chunk.id,
                     "chunk_index": i,
                     "duration_ms": duration_ms,
+                    "stage": stage,
                 },
             )
             continue
@@ -517,17 +542,33 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
         },
     )
 
-    if not chunks or failed_chunks / max(1, len(chunks)) > 0.5:
+    if not chunks:
+        return _error_json(
+            status_code=502,
+            error="Chunking failed to produce any chunks",
+            stage="chunking",
+            details="No chunks were generated for this passage.",
+        )
+
+    failure_ratio = failed_chunks / max(1, len(chunks))
+    if len(results) == 0 or failure_ratio > MAX_CHUNK_FAILURE_RATIO:
         return _error_json(
             status_code=502,
             error="Too many chunks failed during analysis",
             stage="chunk_analysis",
-            details=f"{failed_chunks}/{len(chunks)} chunks failed.",
+            details={
+                "failed": failed_chunks,
+                "total": len(chunks),
+                "failure_ratio": round(failure_ratio, 3),
+                "max_failure_ratio": MAX_CHUNK_FAILURE_RATIO,
+            },
         )
 
     merged = merge_chunk_results(results)
     merged["chunked"] = True
     merged["chunk_count"] = len(chunks)
+    merged["chunk_success_count"] = len(results)
+    merged["chunk_failure_count"] = failed_chunks
     merged["chunk_summaries"] = chunk_summaries
     merged.update(response_meta)
     if warnings:
@@ -548,7 +589,16 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
         )
 
     _stage_log("final_response_return", "start", chunked=True)
-    _stage_log("final_response_return", "end", chunked=True, chunk_count=len(chunks), total_chunk_ms=total_chunk_ms)
+    _stage_log(
+        "final_response_return",
+        "end",
+        chunked=True,
+        chunk_count=len(chunks),
+        chunk_success_count=len(results),
+        chunk_failure_count=failed_chunks,
+        total_chunk_ms=total_chunk_ms,
+        total_ms=int((time.perf_counter() - request_start) * 1000),
+    )
     return final
 
 
