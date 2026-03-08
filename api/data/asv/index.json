@@ -1,0 +1,751 @@
+{
+  "translation": "ASV",
+  "books": [
+    {
+      "id": "GEN",
+      "name": "Genesis",
+      "abbrev": [
+        "Gen",
+        "Ge",
+        "Gn",
+        "Genesis"
+      ],
+      "file": "genesis.json",
+      "chapter_count": 50
+    },
+    {
+      "id": "EXO",
+      "name": "Exodus",
+      "abbrev": [
+        "Exo",
+        "Ex",
+        "Exodus"
+      ],
+      "file": "exodus.json",
+      "chapter_count": 40
+    },
+    {
+      "id": "LEV",
+      "name": "Leviticus",
+      "abbrev": [
+        "Lev",
+        "Lv",
+        "Le",
+        "Leviticus"
+      ],
+      "file": "leviticus.json",
+      "chapter_count": 27
+    },
+    {
+      "id": "NUM",
+      "name": "Numbers",
+      "abbrev": [
+        "Num",
+        "Nm",
+        "Nu",
+        "Numbers"
+      ],
+      "file": "numbers.json",
+      "chapter_count": 36
+    },
+    {
+      "id": "DEU",
+      "name": "Deuteronomy",
+      "abbrev": [
+        "Deut",
+        "Dt",
+        "Deu",
+        "Deuteronomy"
+      ],
+      "file": "deuteronomy.json",
+      "chapter_count": 34
+    },
+    {
+      "id": "JOS",
+      "name": "Joshua",
+      "abbrev": [
+        "Josh",
+        "Jos",
+        "Jos.",
+        "Joshua"
+      ],
+      "file": "joshua.json",
+      "chapter_count": 24
+    },
+    {
+      "id": "JDG",
+      "name": "Judges",
+      "abbrev": [
+        "Judg",
+        "Jdg",
+        "Jdgs",
+        "Judges"
+      ],
+      "file": "judges.json",
+      "chapter_count": 21
+    },
+    {
+      "id": "RUT",
+      "name": "Ruth",
+      "abbrev": [
+        "Ruth",
+        "Ru"
+      ],
+      "file": "ruth.json",
+      "chapter_count": 4
+    },
+    {
+      "id": "1SA",
+      "name": "1 Samuel",
+      "abbrev": [
+        "1 Sam",
+        "1Sa",
+        "1Sam",
+        "I Sam",
+        "1 Samuel"
+      ],
+      "file": "1_samuel.json",
+      "chapter_count": 31
+    },
+    {
+      "id": "2SA",
+      "name": "2 Samuel",
+      "abbrev": [
+        "2 Sam",
+        "2Sa",
+        "2Sam",
+        "II Sam",
+        "2 Samuel"
+      ],
+      "file": "2_samuel.json",
+      "chapter_count": 24
+    },
+    {
+      "id": "1KI",
+      "name": "1 Kings",
+      "abbrev": [
+        "1 Kgs",
+        "1Ki",
+        "1Kgs",
+        "I Kings",
+        "1 Kings"
+      ],
+      "file": "1_kings.json",
+      "chapter_count": 22
+    },
+    {
+      "id": "2KI",
+      "name": "2 Kings",
+      "abbrev": [
+        "2 Kgs",
+        "2Ki",
+        "2Kgs",
+        "II Kings",
+        "2 Kings"
+      ],
+      "file": "2_kings.json",
+      "chapter_count": 25
+    },
+    {
+      "id": "1CH",
+      "name": "1 Chronicles",
+      "abbrev": [
+        "1 Chr",
+        "1Ch",
+        "I Chron",
+        "1 Chronicles"
+      ],
+      "file": "1_chronicles.json",
+      "chapter_count": 29
+    },
+    {
+      "id": "2CH",
+      "name": "2 Chronicles",
+      "abbrev": [
+        "2 Chr",
+        "2Ch",
+        "II Chron",
+        "2 Chronicles"
+      ],
+      "file": "2_chronicles.json",
+      "chapter_count": 36
+    },
+    {
+      "id": "EZR",
+      "name": "Ezra",
+      "abbrev": [
+        "Ezra",
+        "Ezr"
+      ],
+      "file": "ezra.json",
+      "chapter_count": 10
+    },
+    {
+      "id": "NEH",
+      "name": "Nehemiah",
+      "abbrev": [
+        "Neh",
+        "Ne",
+        "Nehemiah"
+      ],
+      "file": "nehemiah.json",
+      "chapter_count": 13
+    },
+    {
+      "id": "EST",
+      "name": "Esther",
+      "abbrev": [
+        "Est",
+        "Esth",
+        "Esther"
+      ],
+      "file": "esther.json",
+      "chapter_count": 10
+    },
+    {
+      "id": "JOB",
+      "name": "Job",
+      "abbrev": [
+        "Job"
+      ],
+      "file": "job.json",
+      "chapter_count": 42
+    },
+    {
+      "id": "PSA",
+      "name": "Psalms",
+      "abbrev": [
+        "Ps",
+        "Psa",
+        "Psalms",
+        "Psalm"
+      ],
+      "file": "psalms.json",
+      "chapter_count": 150
+    },
+    {
+      "id": "PRO",
+      "name": "Proverbs",
+      "abbrev": [
+        "Prov",
+        "Pr",
+        "Pro",
+        "Proverbs"
+      ],
+      "file": "proverbs.json",
+      "chapter_count": 31
+    },
+    {
+      "id": "ECC",
+      "name": "Ecclesiastes",
+      "abbrev": [
+        "Eccl",
+        "Ecc",
+        "Ecclesiastes"
+      ],
+      "file": "ecclesiastes.json",
+      "chapter_count": 12
+    },
+    {
+      "id": "SNG",
+      "name": "Song of Solomon",
+      "abbrev": [
+        "Song",
+        "Song of Songs",
+        "SOS",
+        "Canticles",
+        "Song of Solomon"
+      ],
+      "file": "song_of_solomon.json",
+      "chapter_count": 8
+    },
+    {
+      "id": "ISA",
+      "name": "Isaiah",
+      "abbrev": [
+        "Isa",
+        "Is",
+        "Isaiah"
+      ],
+      "file": "isaiah.json",
+      "chapter_count": 66
+    },
+    {
+      "id": "JER",
+      "name": "Jeremiah",
+      "abbrev": [
+        "Jer",
+        "Jr",
+        "Jeremiah"
+      ],
+      "file": "jeremiah.json",
+      "chapter_count": 52
+    },
+    {
+      "id": "LAM",
+      "name": "Lamentations",
+      "abbrev": [
+        "Lam",
+        "La",
+        "Lamentations"
+      ],
+      "file": "lamentations.json",
+      "chapter_count": 5
+    },
+    {
+      "id": "EZK",
+      "name": "Ezekiel",
+      "abbrev": [
+        "Ezek",
+        "Eze",
+        "Ezk",
+        "Ezekiel"
+      ],
+      "file": "ezekiel.json",
+      "chapter_count": 48
+    },
+    {
+      "id": "DAN",
+      "name": "Daniel",
+      "abbrev": [
+        "Dan",
+        "Dn",
+        "Daniel"
+      ],
+      "file": "daniel.json",
+      "chapter_count": 12
+    },
+    {
+      "id": "HOS",
+      "name": "Hosea",
+      "abbrev": [
+        "Hos",
+        "Ho",
+        "Hosea"
+      ],
+      "file": "hosea.json",
+      "chapter_count": 14
+    },
+    {
+      "id": "JOL",
+      "name": "Joel",
+      "abbrev": [
+        "Joel",
+        "Jl"
+      ],
+      "file": "joel.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "AMO",
+      "name": "Amos",
+      "abbrev": [
+        "Amos",
+        "Am"
+      ],
+      "file": "amos.json",
+      "chapter_count": 9
+    },
+    {
+      "id": "OBA",
+      "name": "Obadiah",
+      "abbrev": [
+        "Obad",
+        "Ob",
+        "Obadiah"
+      ],
+      "file": "obadiah.json",
+      "chapter_count": 1
+    },
+    {
+      "id": "JON",
+      "name": "Jonah",
+      "abbrev": [
+        "Jon",
+        "Jnh",
+        "Jonah"
+      ],
+      "file": "jonah.json",
+      "chapter_count": 4
+    },
+    {
+      "id": "MIC",
+      "name": "Micah",
+      "abbrev": [
+        "Mic",
+        "Mi",
+        "Micah"
+      ],
+      "file": "micah.json",
+      "chapter_count": 7
+    },
+    {
+      "id": "NAM",
+      "name": "Nahum",
+      "abbrev": [
+        "Nah",
+        "Na",
+        "Nahum"
+      ],
+      "file": "nahum.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "HAB",
+      "name": "Habakkuk",
+      "abbrev": [
+        "Hab",
+        "Hb",
+        "Habakkuk"
+      ],
+      "file": "habakkuk.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "ZEP",
+      "name": "Zephaniah",
+      "abbrev": [
+        "Zeph",
+        "Zep",
+        "Zephaniah"
+      ],
+      "file": "zephaniah.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "HAG",
+      "name": "Haggai",
+      "abbrev": [
+        "Hag",
+        "Hg",
+        "Haggai"
+      ],
+      "file": "haggai.json",
+      "chapter_count": 2
+    },
+    {
+      "id": "ZEC",
+      "name": "Zechariah",
+      "abbrev": [
+        "Zech",
+        "Zec",
+        "Zechariah"
+      ],
+      "file": "zechariah.json",
+      "chapter_count": 14
+    },
+    {
+      "id": "MAL",
+      "name": "Malachi",
+      "abbrev": [
+        "Mal",
+        "Ml",
+        "Malachi"
+      ],
+      "file": "malachi.json",
+      "chapter_count": 4
+    },
+    {
+      "id": "MAT",
+      "name": "Matthew",
+      "abbrev": [
+        "Matt",
+        "Mt",
+        "Matthew"
+      ],
+      "file": "matthew.json",
+      "chapter_count": 28
+    },
+    {
+      "id": "MRK",
+      "name": "Mark",
+      "abbrev": [
+        "Mrk",
+        "Mk",
+        "Mark"
+      ],
+      "file": "mark.json",
+      "chapter_count": 16
+    },
+    {
+      "id": "LUK",
+      "name": "Luke",
+      "abbrev": [
+        "Luk",
+        "Lk",
+        "Luke"
+      ],
+      "file": "luke.json",
+      "chapter_count": 24
+    },
+    {
+      "id": "JHN",
+      "name": "John",
+      "abbrev": [
+        "Jn",
+        "Jhn",
+        "John"
+      ],
+      "file": "john.json",
+      "chapter_count": 21
+    },
+    {
+      "id": "ACT",
+      "name": "Acts",
+      "abbrev": [
+        "Acts",
+        "Ac"
+      ],
+      "file": "acts.json",
+      "chapter_count": 28
+    },
+    {
+      "id": "ROM",
+      "name": "Romans",
+      "abbrev": [
+        "Rom",
+        "Ro",
+        "Romans"
+      ],
+      "file": "romans.json",
+      "chapter_count": 16
+    },
+    {
+      "id": "1CO",
+      "name": "1 Corinthians",
+      "abbrev": [
+        "1 Cor",
+        "1Co",
+        "I Cor",
+        "1 Corinthians"
+      ],
+      "file": "1_corinthians.json",
+      "chapter_count": 16
+    },
+    {
+      "id": "2CO",
+      "name": "2 Corinthians",
+      "abbrev": [
+        "2 Cor",
+        "2Co",
+        "II Cor",
+        "2 Corinthians"
+      ],
+      "file": "2_corinthians.json",
+      "chapter_count": 13
+    },
+    {
+      "id": "GAL",
+      "name": "Galatians",
+      "abbrev": [
+        "Gal",
+        "Ga",
+        "Galatians"
+      ],
+      "file": "galatians.json",
+      "chapter_count": 6
+    },
+    {
+      "id": "EPH",
+      "name": "Ephesians",
+      "abbrev": [
+        "Eph",
+        "Ep",
+        "Ephesians"
+      ],
+      "file": "ephesians.json",
+      "chapter_count": 6
+    },
+    {
+      "id": "PHP",
+      "name": "Philippians",
+      "abbrev": [
+        "Phil",
+        "Php",
+        "Philippians"
+      ],
+      "file": "philippians.json",
+      "chapter_count": 4
+    },
+    {
+      "id": "COL",
+      "name": "Colossians",
+      "abbrev": [
+        "Col",
+        "Co",
+        "Colossians"
+      ],
+      "file": "colossians.json",
+      "chapter_count": 4
+    },
+    {
+      "id": "1TH",
+      "name": "1 Thessalonians",
+      "abbrev": [
+        "1 Thess",
+        "1Th",
+        "I Thess",
+        "1 Thessalonians"
+      ],
+      "file": "1_thessalonians.json",
+      "chapter_count": 5
+    },
+    {
+      "id": "2TH",
+      "name": "2 Thessalonians",
+      "abbrev": [
+        "2 Thess",
+        "2Th",
+        "II Thess",
+        "2 Thessalonians"
+      ],
+      "file": "2_thessalonians.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "1TI",
+      "name": "1 Timothy",
+      "abbrev": [
+        "1 Tim",
+        "1Ti",
+        "I Tim",
+        "1 Timothy"
+      ],
+      "file": "1_timothy.json",
+      "chapter_count": 6
+    },
+    {
+      "id": "2TI",
+      "name": "2 Timothy",
+      "abbrev": [
+        "2 Tim",
+        "2Ti",
+        "II Tim",
+        "2 Timothy"
+      ],
+      "file": "2_timothy.json",
+      "chapter_count": 4
+    },
+    {
+      "id": "TIT",
+      "name": "Titus",
+      "abbrev": [
+        "Titus",
+        "Tit"
+      ],
+      "file": "titus.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "PHM",
+      "name": "Philemon",
+      "abbrev": [
+        "Philem",
+        "Phm",
+        "Philemon"
+      ],
+      "file": "philemon.json",
+      "chapter_count": 1
+    },
+    {
+      "id": "HEB",
+      "name": "Hebrews",
+      "abbrev": [
+        "Heb",
+        "He",
+        "Hebrews"
+      ],
+      "file": "hebrews.json",
+      "chapter_count": 13
+    },
+    {
+      "id": "JAS",
+      "name": "James",
+      "abbrev": [
+        "Jas",
+        "Jm",
+        "James"
+      ],
+      "file": "james.json",
+      "chapter_count": 5
+    },
+    {
+      "id": "1PE",
+      "name": "1 Peter",
+      "abbrev": [
+        "1 Pet",
+        "1Pe",
+        "I Pet",
+        "1 Peter"
+      ],
+      "file": "1_peter.json",
+      "chapter_count": 5
+    },
+    {
+      "id": "2PE",
+      "name": "2 Peter",
+      "abbrev": [
+        "2 Pet",
+        "2Pe",
+        "II Pet",
+        "2 Peter"
+      ],
+      "file": "2_peter.json",
+      "chapter_count": 3
+    },
+    {
+      "id": "1JN",
+      "name": "1 John",
+      "abbrev": [
+        "1 John",
+        "1Jn",
+        "I John"
+      ],
+      "file": "1_john.json",
+      "chapter_count": 5
+    },
+    {
+      "id": "2JN",
+      "name": "2 John",
+      "abbrev": [
+        "2 John",
+        "2Jn",
+        "II John"
+      ],
+      "file": "2_john.json",
+      "chapter_count": 1
+    },
+    {
+      "id": "3JN",
+      "name": "3 John",
+      "abbrev": [
+        "3 John",
+        "3Jn",
+        "III John"
+      ],
+      "file": "3_john.json",
+      "chapter_count": 1
+    },
+    {
+      "id": "JUD",
+      "name": "Jude",
+      "abbrev": [
+        "Jude",
+        "Jud"
+      ],
+      "file": "jude.json",
+      "chapter_count": 1
+    },
+    {
+      "id": "REV",
+      "name": "Revelation",
+      "abbrev": [
+        "Rev",
+        "Re",
+        "Revelation"
+      ],
+      "file": "revelation.json",
+      "chapter_count": 22
+    }
+  ]
+}

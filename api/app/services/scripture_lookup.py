@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Any, Dict, List
 
+logger = logging.getLogger("remez")
 
-DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "asv.json"
+DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "asv"
+INDEX_FILE = DATA_DIR / "index.json"
 
 
 class ScriptureLookupError(Exception):
@@ -21,364 +24,365 @@ class ScriptureLookupError(Exception):
 
 @dataclass(frozen=True)
 class ParsedReference:
-    book: str
-    chapter: int
-    verse_start: int | None = None
-    verse_end: int | None = None
+    book_id: str
+    book_name: str
+    chapter_start: int
+    chapter_end: int
+    verse_start: int | None
+    verse_end: int | None
+    kind: str
 
 
-BOOK_ALIASES: Dict[str, str] = {
-    "genesis": "Genesis",
-    "gen": "Genesis",
-    "ge": "Genesis",
-    "gn": "Genesis",
-    "exodus": "Exodus",
-    "ex": "Exodus",
-    "exo": "Exodus",
-    "leviticus": "Leviticus",
-    "lev": "Leviticus",
-    "lv": "Leviticus",
-    "numbers": "Numbers",
-    "num": "Numbers",
-    "nm": "Numbers",
-    "deuteronomy": "Deuteronomy",
-    "deut": "Deuteronomy",
-    "dt": "Deuteronomy",
-    "joshua": "Joshua",
-    "josh": "Joshua",
-    "jos": "Joshua",
-    "judges": "Judges",
-    "judg": "Judges",
-    "jdg": "Judges",
-    "ruth": "Ruth",
-    "ru": "Ruth",
-    "1 samuel": "1 Samuel",
-    "1 sam": "1 Samuel",
-    "1 sa": "1 Samuel",
-    "2 samuel": "2 Samuel",
-    "2 sam": "2 Samuel",
-    "2 sa": "2 Samuel",
-    "1 kings": "1 Kings",
-    "1 kgs": "1 Kings",
-    "1 ki": "1 Kings",
-    "2 kings": "2 Kings",
-    "2 kgs": "2 Kings",
-    "2 ki": "2 Kings",
-    "1 chronicles": "1 Chronicles",
-    "1 chron": "1 Chronicles",
-    "1 chr": "1 Chronicles",
-    "2 chronicles": "2 Chronicles",
-    "2 chron": "2 Chronicles",
-    "2 chr": "2 Chronicles",
-    "ezra": "Ezra",
-    "ezr": "Ezra",
-    "nehemiah": "Nehemiah",
-    "neh": "Nehemiah",
-    "esther": "Esther",
-    "est": "Esther",
-    "job": "Job",
-    "psalm": "Psalm",
-    "psalms": "Psalm",
-    "ps": "Psalm",
-    "psa": "Psalm",
-    "proverbs": "Proverbs",
-    "prov": "Proverbs",
-    "pr": "Proverbs",
-    "ecclesiastes": "Ecclesiastes",
-    "eccl": "Ecclesiastes",
-    "ecc": "Ecclesiastes",
-    "song of solomon": "Song of Solomon",
-    "song of songs": "Song of Solomon",
-    "song": "Song of Solomon",
-    "canticles": "Song of Solomon",
-    "isaiah": "Isaiah",
-    "isa": "Isaiah",
-    "jeremiah": "Jeremiah",
-    "jer": "Jeremiah",
-    "lamentations": "Lamentations",
-    "lam": "Lamentations",
-    "ezekiel": "Ezekiel",
-    "ezek": "Ezekiel",
-    "daniel": "Daniel",
-    "dan": "Daniel",
-    "hosea": "Hosea",
-    "hos": "Hosea",
-    "joel": "Joel",
-    "amos": "Amos",
-    "obadiah": "Obadiah",
-    "obad": "Obadiah",
-    "jonah": "Jonah",
-    "jon": "Jonah",
-    "micah": "Micah",
-    "mic": "Micah",
-    "nahum": "Nahum",
-    "nah": "Nahum",
-    "habakkuk": "Habakkuk",
-    "hab": "Habakkuk",
-    "zephaniah": "Zephaniah",
-    "zeph": "Zephaniah",
-    "haggai": "Haggai",
-    "hag": "Haggai",
-    "zechariah": "Zechariah",
-    "zech": "Zechariah",
-    "malachi": "Malachi",
-    "mal": "Malachi",
-    "matthew": "Matthew",
-    "matt": "Matthew",
-    "mt": "Matthew",
-    "mark": "Mark",
-    "mrk": "Mark",
-    "mk": "Mark",
-    "luke": "Luke",
-    "luk": "Luke",
-    "lk": "Luke",
-    "john": "John",
-    "jn": "John",
-    "acts": "Acts",
-    "ac": "Acts",
-    "romans": "Romans",
-    "rom": "Romans",
-    "1 corinthians": "1 Corinthians",
-    "1 cor": "1 Corinthians",
-    "1 co": "1 Corinthians",
-    "2 corinthians": "2 Corinthians",
-    "2 cor": "2 Corinthians",
-    "2 co": "2 Corinthians",
-    "galatians": "Galatians",
-    "gal": "Galatians",
-    "ephesians": "Ephesians",
-    "eph": "Ephesians",
-    "philippians": "Philippians",
-    "phil": "Philippians",
-    "philip": "Philippians",
-    "colossians": "Colossians",
-    "col": "Colossians",
-    "1 thessalonians": "1 Thessalonians",
-    "1 thess": "1 Thessalonians",
-    "1 th": "1 Thessalonians",
-    "2 thessalonians": "2 Thessalonians",
-    "2 thess": "2 Thessalonians",
-    "2 th": "2 Thessalonians",
-    "1 timothy": "1 Timothy",
-    "1 tim": "1 Timothy",
-    "2 timothy": "2 Timothy",
-    "2 tim": "2 Timothy",
-    "titus": "Titus",
-    "philemon": "Philemon",
-    "phlm": "Philemon",
-    "hebrews": "Hebrews",
-    "heb": "Hebrews",
-    "james": "James",
-    "jas": "James",
-    "1 peter": "1 Peter",
-    "1 pet": "1 Peter",
-    "2 peter": "2 Peter",
-    "2 pet": "2 Peter",
-    "1 john": "1 John",
-    "1 jn": "1 John",
-    "2 john": "2 John",
-    "2 jn": "2 John",
-    "3 john": "3 John",
-    "3 jn": "3 John",
-    "jude": "Jude",
-    "revelation": "Revelation",
-    "rev": "Revelation",
-}
+_BOOK_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
-def _normalize_book_key(value: str) -> str:
+def _normalize_book_token(value: str) -> str:
     cleaned = value.lower().replace(".", " ")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    return cleaned
+    return cleaned.replace(" ", "")
 
 
 @lru_cache(maxsize=1)
-def _load_asv() -> Dict[str, Dict[str, Dict[str, str]]]:
-    if not DATA_PATH.exists():
+def load_asv_index() -> Dict[str, Any]:
+    if not INDEX_FILE.exists():
         raise ScriptureLookupError(
             status_code=500,
-            error="ASV source missing",
-            details=f"ASV data file not found at {DATA_PATH}",
+            error="ASV index missing",
+            details=f"Index file not found at {INDEX_FILE}",
         )
-    with DATA_PATH.open("r", encoding="utf-8") as f:
-        payload = json.load(f)
-    if not isinstance(payload, dict):
+    try:
+        payload = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:
         raise ScriptureLookupError(
             status_code=500,
-            error="ASV source malformed",
-            details="ASV data file must be a JSON object keyed by book name.",
+            error="ASV index malformed",
+            details=str(exc),
+        ) from exc
+
+    if not isinstance(payload, dict) or "books" not in payload:
+        raise ScriptureLookupError(
+            status_code=500,
+            error="ASV index malformed",
+            details="Index JSON must contain a 'books' array.",
         )
+
+    books = payload.get("books")
+    if not isinstance(books, list) or len(books) < 66:
+        raise ScriptureLookupError(
+            status_code=500,
+            error="ASV index malformed",
+            details="Index JSON must contain 66 books.",
+        )
+
+    lookup: Dict[str, Dict[str, Any]] = {}
+    for item in books:
+        if not isinstance(item, dict):
+            continue
+        book_id = str(item.get("id", "")).strip().upper()
+        book_name = str(item.get("name", "")).strip()
+        if not book_id or not book_name:
+            continue
+        tokens = [book_id, book_name]
+        abbrev = item.get("abbrev") or []
+        if isinstance(abbrev, list):
+            tokens.extend([str(a) for a in abbrev if a])
+        for token in tokens:
+            key = _normalize_book_token(token)
+            if key:
+                lookup[key] = item
+
+    payload["_lookup"] = lookup
+    return payload
+
+
+def load_book(book_id_or_name: str) -> Dict[str, Any]:
+    index = load_asv_index()
+    lookup = index.get("_lookup") or {}
+    token = _normalize_book_token(book_id_or_name)
+    book_info = lookup.get(token)
+    if not book_info:
+        raise ScriptureLookupError(
+            status_code=400,
+            error="Unknown book abbreviation",
+            details=f"Book not recognized: {book_id_or_name}",
+        )
+
+    book_id = str(book_info.get("id", "")).strip().upper()
+    if book_id in _BOOK_CACHE:
+        logger.info("asv_book_cache_hit", extra={"book_id": book_id, "book_name": book_info.get("name")})
+        return _BOOK_CACHE[book_id]
+
+    file_name = str(book_info.get("file", "")).strip()
+    if not file_name:
+        raise ScriptureLookupError(
+            status_code=500,
+            error="ASV index malformed",
+            details=f"Missing file name for {book_id}",
+        )
+
+    file_path = DATA_DIR / file_name
+    if not file_path.exists():
+        raise ScriptureLookupError(
+            status_code=500,
+            error="ASV book file missing",
+            details=f"Missing ASV book file: {file_name}",
+        )
+
+    try:
+        payload = json.loads(file_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ScriptureLookupError(
+            status_code=500,
+            error="ASV book file malformed",
+            details=str(exc),
+        ) from exc
+
+    if not isinstance(payload, dict) or "chapters" not in payload:
+        raise ScriptureLookupError(
+            status_code=500,
+            error="ASV book file malformed",
+            details=f"Book file {file_name} is missing chapters.",
+        )
+
+    _BOOK_CACHE[book_id] = payload
+    logger.info("asv_book_loaded", extra={"book_id": book_id, "book_name": book_info.get("name"), "file": file_name})
     return payload
 
 
 def parse_reference(reference: str) -> ParsedReference:
     if not reference or not reference.strip():
-        raise ScriptureLookupError(status_code=400, error="Invalid reference", details="Reference is required.")
+        raise ScriptureLookupError(status_code=400, error="Invalid reference format", details="Reference is required.")
 
-    normalized = reference.strip()
-    normalized = re.sub(r"(\d)([A-Za-z])", r"\1 \2", normalized)
-    normalized = re.sub(r"\s+", " ", normalized)
-
-    tokens = normalized.split(" ")
-    book_key = None
-    book_name = None
-    chapter_part = None
-
-    for i in range(len(tokens), 0, -1):
-        candidate = _normalize_book_key(" ".join(tokens[:i]))
-        if candidate in BOOK_ALIASES:
-            book_key = candidate
-            book_name = BOOK_ALIASES[candidate]
-            chapter_part = " ".join(tokens[i:]).strip()
-            break
-
-    if not book_name or chapter_part is None:
-        raise ScriptureLookupError(
-            status_code=400,
-            error="Invalid reference",
-            details="Book name not recognized.",
-        )
-
-    if not chapter_part:
-        raise ScriptureLookupError(
-            status_code=400,
-            error="Unsupported reference format",
-            details="Chapter is required (e.g., Genesis 1).",
-        )
-
-    chapter_part = re.sub(r"\s+", "", chapter_part)
-    match = re.match(r"^(?P<chapter>\d+)(?::(?P<verse>\d+)(?:-(?P<verse_end>\d+))?)?$", chapter_part)
+    raw = reference.strip()
+    match = re.match(r"^\s*(.+?)\s+(\d+)(?::(\d+)(?:-(\d+))?)?\s*$", raw)
     if not match:
         raise ScriptureLookupError(
             status_code=400,
-            error="Unsupported reference format",
+            error="Invalid reference format",
             details="Use formats like Genesis 1 or Philippians 2:6-11.",
         )
 
-    chapter = int(match.group("chapter"))
-    verse_start = match.group("verse")
-    verse_end = match.group("verse_end")
+    book_part = match.group(1)
+    chapter = int(match.group(2))
+    verse_start = int(match.group(3)) if match.group(3) else None
+    verse_end = int(match.group(4)) if match.group(4) else None
 
-    verse_start_int = int(verse_start) if verse_start else None
-    verse_end_int = int(verse_end) if verse_end else None
-
-    if verse_end_int is not None and verse_start_int is not None and verse_end_int < verse_start_int:
+    index = load_asv_index()
+    lookup = index.get("_lookup") or {}
+    book_key = _normalize_book_token(book_part)
+    book_info = lookup.get(book_key)
+    if not book_info:
         raise ScriptureLookupError(
             status_code=400,
-            error="Invalid reference",
+            error="Unknown book abbreviation",
+            details=f"Book not recognized: {book_part}",
+        )
+
+    if verse_end is not None and verse_start is not None and verse_end < verse_start:
+        raise ScriptureLookupError(
+            status_code=400,
+            error="Invalid reference format",
             details="Verse range end must be after the start verse.",
         )
 
-    return ParsedReference(
-        book=book_name,
-        chapter=chapter,
-        verse_start=verse_start_int,
-        verse_end=verse_end_int,
+    kind = "chapter"
+    if verse_start is not None and verse_end is None:
+        kind = "single_verse"
+    elif verse_start is not None and verse_end is not None:
+        kind = "verse_range"
+
+    parsed = ParsedReference(
+        book_id=str(book_info.get("id")).upper(),
+        book_name=str(book_info.get("name")),
+        chapter_start=chapter,
+        chapter_end=chapter,
+        verse_start=verse_start,
+        verse_end=verse_end,
+        kind=kind,
     )
 
+    logger.info(
+        "asv_reference_parsed",
+        extra={
+            "reference_raw": raw,
+            "reference_normalized": format_reference(parsed),
+            "book_id": parsed.book_id,
+            "chapter": parsed.chapter_start,
+            "verse_start": parsed.verse_start,
+            "verse_end": parsed.verse_end,
+            "kind": parsed.kind,
+        },
+    )
 
-def _get_chapter_verses(data: Dict[str, Dict[str, Dict[str, str]]], ref: ParsedReference) -> Dict[int, str]:
-    book = data.get(ref.book)
-    if not isinstance(book, dict):
+    return parsed
+
+
+def format_reference(parsed: ParsedReference) -> str:
+    if parsed.kind == "chapter":
+        return f"{parsed.book_name} {parsed.chapter_start}"
+    if parsed.kind == "single_verse":
+        return f"{parsed.book_name} {parsed.chapter_start}:{parsed.verse_start}"
+    return f"{parsed.book_name} {parsed.chapter_start}:{parsed.verse_start}-{parsed.verse_end}"
+
+
+def _get_chapter(book_payload: Dict[str, Any], chapter: int) -> List[str]:
+    chapters = book_payload.get("chapters")
+    if not isinstance(chapters, list):
         raise ScriptureLookupError(
-            status_code=404,
-            error="Reference not found in local ASV source.",
-            details="Book not found in ASV dataset.",
+            status_code=500,
+            error="ASV book file malformed",
+            details="Chapters must be an array.",
         )
-    chapter = book.get(str(ref.chapter))
-    if not isinstance(chapter, dict):
+    if chapter < 1 or chapter > len(chapters):
         raise ScriptureLookupError(
-            status_code=404,
-            error="Reference not found in local ASV source.",
-            details="Chapter not found in ASV dataset.",
+            status_code=400,
+            error="Chapter out of range",
+            details=f"Chapter {chapter} is out of range.",
         )
-
-    verses: Dict[int, str] = {}
-    for key, text in chapter.items():
-        try:
-            verse_num = int(key)
-        except (TypeError, ValueError):
-            continue
-        if not isinstance(text, str):
-            continue
-        verses[verse_num] = text
-
-    if not verses:
+    chapter_data = chapters[chapter - 1]
+    if not isinstance(chapter_data, list):
         raise ScriptureLookupError(
-            status_code=404,
-            error="Reference not found in local ASV source.",
-            details="No verses found for this chapter.",
+            status_code=500,
+            error="ASV book file malformed",
+            details="Chapter data must be an array of verses.",
         )
+    return chapter_data
 
-    return verses
 
+def get_passage_asv(reference: str) -> Dict[str, Any]:
+    parsed = parse_reference(reference)
+    book_payload = load_book(parsed.book_id)
+    chapter_data = _get_chapter(book_payload, parsed.chapter_start)
 
-def get_passage_metadata(reference: str) -> Dict[str, int | str | None]:
-    ref = parse_reference(reference)
-    data = _load_asv()
-    verses = _get_chapter_verses(data, ref)
-
-    ordered = sorted(verses.keys())
-    start = ref.verse_start or ordered[0]
-    end = ref.verse_end or (ref.verse_start or ordered[-1])
-
-    if start not in verses or end not in verses:
+    if not chapter_data:
         raise ScriptureLookupError(
-            status_code=404,
-            error="Reference not found in local ASV source.",
-            details="Verse not found in ASV dataset.",
-        )
-
-    if ref.verse_start is not None and ref.verse_end is None:
-        formatted_ref = f"{ref.book} {ref.chapter}:{ref.verse_start}"
-    elif ref.verse_start is not None and ref.verse_end is not None:
-        formatted_ref = f"{ref.book} {ref.chapter}:{ref.verse_start}-{ref.verse_end}"
-    else:
-        formatted_ref = f"{ref.book} {ref.chapter}"
-
-    return {
-        "book": ref.book,
-        "chapter": ref.chapter,
-        "verse_start": start,
-        "verse_end": end,
-        "reference": formatted_ref,
-        "verse_count": end - start + 1,
-    }
-
-
-def get_passage_asv(reference: str) -> str:
-    ref = parse_reference(reference)
-    data = _load_asv()
-    verses = _get_chapter_verses(data, ref)
-    ordered = sorted(verses.keys())
-
-    start = ref.verse_start or ordered[0]
-    end = ref.verse_end or (ref.verse_start or ordered[-1])
-
-    if start not in verses or end not in verses:
-        raise ScriptureLookupError(
-            status_code=404,
-            error="Reference not found in local ASV source.",
-            details="Verse not found in ASV dataset.",
+            status_code=500,
+            error="ASV book file malformed",
+            details="Chapter data missing verses.",
         )
 
-    selected = [v for v in ordered if start <= v <= end]
+    verse_start = parsed.verse_start or 1
+    verse_end = parsed.verse_end or (parsed.verse_start or len(chapter_data))
+
+    if verse_start < 1 or verse_start > len(chapter_data):
+        raise ScriptureLookupError(
+            status_code=400,
+            error="Verse out of range",
+            details=f"Verse {verse_start} is out of range.",
+        )
+    if verse_end < 1 or verse_end > len(chapter_data):
+        raise ScriptureLookupError(
+            status_code=400,
+            error="Verse out of range",
+            details=f"Verse {verse_end} is out of range.",
+        )
+
+    if parsed.verse_start is not None and parsed.verse_end is None:
+        verse_end = verse_start
+
+    if verse_end < verse_start:
+        raise ScriptureLookupError(
+            status_code=400,
+            error="Invalid reference format",
+            details="Verse range end must be after the start verse.",
+        )
+
+    selected = chapter_data[verse_start - 1 : verse_end]
     if not selected:
         raise ScriptureLookupError(
-            status_code=404,
-            error="Reference not found in local ASV source.",
+            status_code=400,
+            error="Verse out of range",
             details="No verses found for this reference.",
         )
 
-    lines = [f"{num}. {verses[num]}" for num in selected]
-    return "\n".join(lines)
+    lines = [f"{i + verse_start} {text}" for i, text in enumerate(selected)]
+    text = "\n".join(lines)
+
+    logger.info(
+        "asv_passage_loaded",
+        extra={
+            "reference_normalized": format_reference(parsed),
+            "book_id": parsed.book_id,
+            "chapter": parsed.chapter_start,
+            "verse_start": verse_start,
+            "verse_end": verse_end,
+            "verse_count": len(selected),
+        },
+    )
+
+    return {
+        "reference": format_reference(parsed),
+        "source_translation": "ASV",
+        "source_mode": "reference",
+        "text": text,
+    }
 
 
-def format_reference(metadata: Dict[str, int | str | None]) -> str:
-    return str(metadata.get("reference") or "")
+def get_passage_metadata(reference: str) -> Dict[str, Any]:
+    parsed = parse_reference(reference)
+    book_payload = load_book(parsed.book_id)
+    chapters = book_payload.get("chapters")
+    chapter_count = len(chapters) if isinstance(chapters, list) else 0
+
+    verse_start = parsed.verse_start or 1
+    verse_end = parsed.verse_end or (parsed.verse_start or 1)
+    if parsed.verse_start is None:
+        chapter_data = _get_chapter(book_payload, parsed.chapter_start)
+        verse_end = len(chapter_data)
+
+    verse_count = max(0, verse_end - verse_start + 1)
+
+    return {
+        "reference": format_reference(parsed),
+        "book_name": parsed.book_name,
+        "translation": "ASV",
+        "chapter_count": 1,
+        "verse_count": verse_count,
+        "book_chapter_count": chapter_count,
+    }
 
 
-def get_passage_and_metadata(reference: str) -> Tuple[str, Dict[str, int | str | None]]:
-    metadata = get_passage_metadata(reference)
-    passage = get_passage_asv(reference)
-    return passage, metadata
+def validate_asv_corpus() -> List[str]:
+    errors: List[str] = []
+    try:
+        index = load_asv_index()
+    except ScriptureLookupError as exc:
+        return [f"index: {exc.error} ({exc.details})"]
+
+    books = index.get("books") or []
+    if len(books) != 66:
+        errors.append(f"index: expected 66 books, found {len(books)}")
+
+    for item in books:
+        if not isinstance(item, dict):
+            errors.append("index: non-object book entry")
+            continue
+        book_id = str(item.get("id", "")).strip().upper()
+        file_name = str(item.get("file", "")).strip()
+        chapter_count = item.get("chapter_count")
+        if not book_id or not file_name:
+            errors.append(f"index: missing id/file for {item}")
+            continue
+        file_path = DATA_DIR / file_name
+        if not file_path.exists():
+            errors.append(f"missing book file: {file_name}")
+            continue
+        try:
+            payload = json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"malformed book file {file_name}: {exc}")
+            continue
+        chapters = payload.get("chapters") if isinstance(payload, dict) else None
+        if not isinstance(chapters, list):
+            errors.append(f"book file {file_name} missing chapters array")
+            continue
+        if isinstance(chapter_count, int) and chapter_count != len(chapters):
+            errors.append(
+                f"book file {file_name} chapter_count mismatch: index {chapter_count} vs file {len(chapters)}"
+            )
+        for idx, chap in enumerate(chapters, start=1):
+            if not isinstance(chap, list):
+                errors.append(f"book file {file_name} chapter {idx} not an array")
+                break
+
+    return errors

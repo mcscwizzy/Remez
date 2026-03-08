@@ -9,7 +9,12 @@ from .services.azure_foundry import call_azure_foundry
 from .services.normalizer import normalize_llm_output
 from .services.chunking import chunk_passage
 from .services.merge import merge_chunk_results
-from .services.scripture_lookup import ScriptureLookupError, get_passage_and_metadata
+from .services.scripture_lookup import (
+    ScriptureLookupError,
+    get_passage_asv,
+    get_passage_metadata,
+    validate_asv_corpus,
+)
 import json
 import os
 import time
@@ -36,6 +41,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def validate_asv_on_startup() -> None:
+    errors = validate_asv_corpus()
+    if errors:
+        logger.error("asv_corpus_validation_failed", extra={"count": len(errors), "errors": errors[:25]})
+    else:
+        logger.info("asv_corpus_validation_ok")
 
 MAX_WALL_TIME_SEC = float(os.getenv("MAX_WALL_TIME_SEC", "240"))
 MAX_INPUT_CHARS = int(os.getenv("MAX_INPUT_CHARS", "12000"))
@@ -421,7 +435,8 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
                 details="Enter a reference like Genesis 1 or Philippians 2:6-11.",
             )
         try:
-            resolved_text, metadata = get_passage_and_metadata(req.reference.strip())
+            passage = get_passage_asv(req.reference.strip())
+            metadata = get_passage_metadata(req.reference.strip())
         except ScriptureLookupError as exc:
             return _error_json(
                 status_code=exc.status_code,
@@ -429,12 +444,22 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
                 stage="scripture_lookup",
                 details=exc.details,
             )
+        resolved_text = str(passage.get("text") or "").strip()
         response_meta.update(
             {
-                "reference": str(metadata.get("reference") or req.reference.strip()),
-                "source_translation": "ASV",
+                "reference": str(passage.get("reference") or metadata.get("reference") or req.reference.strip()),
+                "source_translation": str(passage.get("source_translation") or "ASV"),
                 "source_mode": "reference",
             }
+        )
+        logger.info(
+            "asv_reference_metadata",
+            extra={
+                "reference_normalized": metadata.get("reference"),
+                "book_name": metadata.get("book_name"),
+                "verse_count": metadata.get("verse_count"),
+                "chapter_count": metadata.get("chapter_count"),
+            },
         )
 
     if len(resolved_text) > MAX_ANALYZE_INPUT_CHARS:
