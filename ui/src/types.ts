@@ -1,5 +1,7 @@
 export type AnalyzeRequest = {
-  text?: string;        // pasted passage text (required in UI)
+  reference?: string;   // scripture reference (primary input)
+  text?: string;        // custom passage text (advanced mode)
+  source_mode?: "reference" | "custom_text";
   includeChiasm?: boolean;
   includeHebraicNotes?: boolean;
   includeNTParallels?: boolean;

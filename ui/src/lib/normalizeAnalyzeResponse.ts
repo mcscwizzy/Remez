@@ -69,6 +69,10 @@ export function normalizeAnalyzeResponse(api: ApiAnalyzeResponse): UiAnalyzeResp
       overview: { content: asString(api.overview_summary) }
     },
 
+    reference: asString(api.reference) || undefined,
+    source_translation: asString(api.source_translation) || undefined,
+    source_mode: (api.source_mode as any) ?? undefined,
+
     structure: {
       detected: asString(structure.detected, "unknown"),
       confidence: structure.confidence,

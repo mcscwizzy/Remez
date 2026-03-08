@@ -5,8 +5,17 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class AnalyzeRequest(BaseModel):
-    text: str = Field(
+    text: Optional[str] = Field(
+        default=None,
         description="Raw passage text supplied by the user",
+    )
+    reference: Optional[str] = Field(
+        default=None,
+        description="Scripture reference (e.g., Genesis 1 or Philippians 2:6-11)",
+    )
+    source_mode: Optional[Literal["reference", "custom_text"]] = Field(
+        default=None,
+        description="Input mode selector for reference lookup vs custom text",
     )
     profile: Literal["heiser"] = Field(default="heiser")
 
@@ -133,6 +142,10 @@ class ChunkSummary(BaseModel):
 
 class AnalysisResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
+
+    reference: Optional[str] = None
+    source_translation: Optional[str] = None
+    source_mode: Optional[Literal["reference", "custom_text"]] = None
 
     structure: StructureResult
     narrative_flow: NarrativeFlowResult

@@ -4,10 +4,9 @@ export function GuidePanel() {
       <h2>Quick Start — How to Use Remez</h2>
 
       <p>
-        <strong>Step 1 — Paste the passage text.</strong>
+        <strong>Step 1 — Enter a reference.</strong>
         <br />
-        Copy and paste the passage you want to analyze. Any translation works. Remez does not fetch Bible text — it
-        analyzes what you provide.
+        Use a reference like Genesis 1, Psalm 82, or Philippians 2:6-11. Remez loads the ASV text locally by default.
       </p>
 
       <p>

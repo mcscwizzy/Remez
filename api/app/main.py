@@ -1,5 +1,5 @@
 # api/app/main.py
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -9,6 +9,7 @@ from .services.azure_foundry import call_azure_foundry
 from .services.normalizer import normalize_llm_output
 from .services.chunking import chunk_passage
 from .services.merge import merge_chunk_results
+from .services.scripture_lookup import ScriptureLookupError, get_passage_and_metadata
 import json
 import os
 import time
@@ -389,19 +390,63 @@ async def _run_single_analysis(text: str, unit: str) -> tuple[AnalysisResponse |
 
 
 async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
-    if not req.text or not req.text.strip():
-        raise HTTPException(status_code=400, detail="Passage text is required.")
-    if len(req.text) > MAX_INPUT_CHARS:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Passage too long. Please shorten the text (max {MAX_INPUT_CHARS} characters).",
+    source_mode = req.source_mode
+    if not source_mode:
+        if req.text and req.text.strip() and not (req.reference and req.reference.strip()):
+            source_mode = "custom_text"
+        else:
+            source_mode = "reference"
+
+    response_meta: Dict[str, Any] = {"source_mode": source_mode}
+    resolved_text = ""
+
+    if source_mode == "custom_text":
+        if not req.text or not req.text.strip():
+            return _error_json(
+                status_code=400,
+                error="Passage text is required.",
+                stage="validation",
+                details="Provide custom passage text or switch to reference mode.",
+            )
+        resolved_text = req.text.strip()
+    else:
+        if not req.reference or not req.reference.strip():
+            return _error_json(
+                status_code=400,
+                error="Reference is required.",
+                stage="validation",
+                details="Enter a reference like Genesis 1 or Philippians 2:6-11.",
+            )
+        try:
+            resolved_text, metadata = get_passage_and_metadata(req.reference.strip())
+        except ScriptureLookupError as exc:
+            return _error_json(
+                status_code=exc.status_code,
+                error=exc.error,
+                stage="scripture_lookup",
+                details=exc.details,
+            )
+        response_meta.update(
+            {
+                "reference": str(metadata.get("reference") or req.reference.strip()),
+                "source_translation": "ASV",
+                "source_mode": "reference",
+            }
         )
 
-    input_len = len(req.text)
-    _stage_log("analyze_input", "start", input_chars=input_len)
+    if len(resolved_text) > MAX_INPUT_CHARS:
+        return _error_json(
+            status_code=413,
+            error="Passage too long.",
+            stage="validation",
+            details=f"Please shorten the text (max {MAX_INPUT_CHARS} characters).",
+        )
+
+    input_len = len(resolved_text)
+    _stage_log("analyze_input", "start", input_chars=input_len, source_mode=source_mode)
 
     if input_len <= MAX_ANALYZE_CHARS_PER_CHUNK:
-        validated, _parsed, error_response, _duration_ms = await _run_single_analysis(req.text, "single")
+        validated, _parsed, error_response, _duration_ms = await _run_single_analysis(resolved_text, "single")
         if error_response is not None:
             return error_response
         if validated is None:
@@ -413,9 +458,9 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
             )
         _stage_log("final_response_return", "start", chunked=False)
         _stage_log("final_response_return", "end", chunked=False)
-        return validated
+        return validated.model_copy(update=response_meta)
 
-    chunks = chunk_passage(req.text, MAX_ANALYZE_CHARS_PER_CHUNK, ANALYZE_CHUNK_OVERLAP_CHARS)
+    chunks = chunk_passage(resolved_text, MAX_ANALYZE_CHARS_PER_CHUNK, ANALYZE_CHUNK_OVERLAP_CHARS)
     _stage_log("chunking", "end", input_chars=input_len, chunk_count=len(chunks))
     logger.info(
         "chunking_summary",
@@ -484,6 +529,7 @@ async def _analyze_impl(req: AnalyzeRequest) -> AnalysisResponse | JSONResponse:
     merged["chunked"] = True
     merged["chunk_count"] = len(chunks)
     merged["chunk_summaries"] = chunk_summaries
+    merged.update(response_meta)
     if warnings:
         merged["_warnings"] = warnings
 

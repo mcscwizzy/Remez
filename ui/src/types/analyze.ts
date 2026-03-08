@@ -6,6 +6,10 @@ export type LayerId = "overview";
 
 export interface ApiAnalyzeResponse {
   // Current backend fields (based on your sample)
+  reference?: string;
+  source_translation?: string;
+  source_mode?: "reference" | "custom_text";
+
   structure?: ApiStructure;
   narrative_flow?: ApiNarrativeFlow;
 
@@ -144,6 +148,10 @@ export interface ApiChunkSummary {
 
 export interface UiAnalyzeResponse {
   layers: Record<LayerId, { content: string }>;
+
+  reference?: string;
+  source_translation?: string;
+  source_mode?: "reference" | "custom_text";
 
   structure: UiStructure;
   narrative_flow: UiNarrativeFlow;

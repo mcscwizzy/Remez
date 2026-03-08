@@ -32,13 +32,23 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
   }
 
   const layerText = isLayerTab(tab) ? data.layers[tab]?.content ?? "" : "";
+  const sourceLabel =
+    data.source_mode === "custom_text"
+      ? "custom text"
+      : `${data.source_translation || "ASV"} · reference`;
+  const referenceLabel = data.reference ? data.reference : null;
+  const headerLabel =
+    data.source_mode === "custom_text"
+      ? "Custom text"
+      : `Reference: ${referenceLabel ?? "—"}`;
 
   return (
     <div className="h-full card card-edge p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-lg font-semibold">Output</div>
-          <div className="text-sm text-gray-600">Pasted text</div>
+          <div className="text-sm text-gray-600">{headerLabel}</div>
+          <div className="text-xs text-gray-500">Source: {sourceLabel}</div>
         </div>
       </div>
 
@@ -48,8 +58,7 @@ export function ResponsePanel({ data }: { data: UiAnalyzeResponse | null }) {
         <div className="space-y-4">
           {data.chunked ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-sm text-amber-900">
-              This chapter was analyzed in sections for stability. The summary below synthesizes the chapter as a
-              whole.
+              This passage was analyzed in sections for stability. Summary below reflects the whole chapter.
             </div>
           ) : null}
 

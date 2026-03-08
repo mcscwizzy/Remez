@@ -20,7 +20,9 @@ function uid() {
 
 export default function App() {
   const [showGuideBanner, setShowGuideBanner] = useState(false);
-  const [text, setText] = useState("");
+  const [reference, setReference] = useState("");
+  const [customText, setCustomText] = useState("");
+  const [useCustomText, setUseCustomText] = useState(false);
   const [apiReady, setApiReady] = useState<"unknown" | "ready" | "error">("unknown");
   const maxInputChars = 12000;
 
@@ -37,12 +39,14 @@ export default function App() {
 
   const payload = useMemo<AnalyzeRequest>(
     () => ({
-      text: text.trim() ? text.trim() : undefined,
+      reference: !useCustomText && reference.trim() ? reference.trim() : undefined,
+      text: useCustomText && customText.trim() ? customText.trim() : undefined,
+      source_mode: useCustomText ? "custom_text" : "reference",
       includeChiasm,
       includeHebraicNotes,
       includeNTParallels
     }),
-    [text, includeChiasm, includeHebraicNotes, includeNTParallels]
+    [reference, customText, useCustomText, includeChiasm, includeHebraicNotes, includeNTParallels]
   );
 
   useEffect(() => {
@@ -82,13 +86,20 @@ export default function App() {
   }, [loading]);
 
   async function run() {
-    if (!text.trim()) {
-      setError("Paste passage text to analyze.");
-      return;
-    }
-    if (text.trim().length > maxInputChars) {
-      setError(`Passage too long. Please shorten the text (max ${maxInputChars} characters).`);
-      return;
+    if (useCustomText) {
+      if (!customText.trim()) {
+        setError("Paste custom passage text to analyze.");
+        return;
+      }
+      if (customText.trim().length > maxInputChars) {
+        setError(`Passage too long. Please shorten the text (max ${maxInputChars} characters).`);
+        return;
+      }
+    } else {
+      if (!reference.trim()) {
+        setError("Enter a reference (e.g., Genesis 1).");
+        return;
+      }
     }
     setLoading(true);
     setError(null);
@@ -102,8 +113,11 @@ export default function App() {
       setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, response: res } : x)));
     } catch (e: any) {
       const msg = e?.message ?? "Unknown error";
-      setError(msg);
-      setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, error: msg } : x)));
+      const friendly = msg.includes("Reference not found in local ASV source.")
+        ? "Reference not found in local ASV source."
+        : msg;
+      setError(friendly);
+      setHistory((h) => h.map((x) => (x.id === item.id ? { ...x, error: friendly } : x)));
     } finally {
       setLoading(false);
     }
@@ -138,20 +152,29 @@ export default function App() {
               <div className="section-title">Input</div>
 
               <label className="block">
-                <div className="text-sm text-gray-600">Paste passage text (required)</div>
-                <textarea
-                  className="mt-1 w-full textarea-field h-56"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Paste the full passage text here"
+                <div className="text-sm text-gray-600">Reference (required)</div>
+                <input
+                  className="mt-1 w-full textarea-field h-12"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="Genesis 1, Psalm 82, Philippians 2:6-11"
                 />
+                <div className="mt-2 text-xs text-gray-500">Default source: ASV (public domain)</div>
               </label>
 
-              <div className="rounded-xl border border-[color:var(--color-border)] bg-white/70 p-3 text-sm text-gray-700">
-                Structure patterns can look different across translations because wording and word order change.
-                Comparing translations can help you see repeated phrases and pivots more clearly. The strongest
-                structural work comes from the Hebrew/Greek text, but you can still learn a lot from good translations.
-              </div>
+              <Toggle label="Advanced / Custom Text" checked={useCustomText} onChange={setUseCustomText} />
+
+              {useCustomText ? (
+                <label className="block">
+                  <div className="text-sm text-gray-600">Custom text (overrides reference)</div>
+                  <textarea
+                    className="mt-1 w-full textarea-field h-48"
+                    value={customText}
+                    onChange={(e) => setCustomText(e.target.value)}
+                    placeholder="Paste the full passage text here"
+                  />
+                </label>
+              ) : null}
 
               <div className="grid gap-2">
                 <Toggle
@@ -203,7 +226,11 @@ export default function App() {
                     onClick={() => setCurrent(h.response ?? null)}
                     title="Click to load output"
                   >
-                    <div className="text-sm font-semibold">Pasted text</div>
+                    <div className="text-sm font-semibold">
+                      {h.request.source_mode === "custom_text"
+                        ? "Custom text"
+                        : h.request.reference || "Reference"}
+                    </div>
                     <div className="text-xs text-gray-600">
                       {new Date(h.ts).toLocaleString()}
                       {h.error ? " • error" : h.response ? " • ok" : ""}

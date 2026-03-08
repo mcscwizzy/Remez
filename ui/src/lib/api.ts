@@ -30,7 +30,7 @@ export async function analyzePassage(payload: unknown): Promise<UiAnalyzeRespons
   if (!res.ok) {
     if (contentType.includes("application/json")) {
       const err = await res.json().catch(() => null);
-      const detail = err?.detail ?? err?.message ?? res.statusText;
+      const detail = err?.detail ?? err?.error ?? err?.message ?? res.statusText;
       throw new Error(`Analyze failed (${res.status}): ${detail}`);
     }
     const text = await res.text().catch(() => "");
